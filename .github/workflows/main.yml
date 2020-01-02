@@ -27,5 +27,6 @@ jobs:
         FTP_SERVER: files.000webhost.com
         FTP_USERNAME: mywebappruchika
         FTP_PASSWORD: Hellohell
-        LOCAL_DIR: dist
+        LOCAL_DIR: dist/plantsapling
+        REMOTE_DIR: public_html 
         ARGS: --delete
