@@ -6,14 +6,14 @@ import { HomeComponent } from './home/home.component';
 
 
 const routes: Routes = [
-  {path:'home', component:HomeComponent},
+  {path:'', component:HomeComponent,pathMatch: 'full'},
   {path:'view-port',component:CanvasViewportComponent},
   {path:'garden-proto',component:TryOnGardenComponent},
-  {path:'**', redirectTo:'home'}
+  {path:'**', redirectTo:''}
 ];
 
 @NgModule({
-  imports: [RouterModule.forRoot(routes)],
+  imports: [RouterModule.forRoot(routes, {useHash: true})],
   exports: [RouterModule]
 })
 export class AppRoutingModule { }
