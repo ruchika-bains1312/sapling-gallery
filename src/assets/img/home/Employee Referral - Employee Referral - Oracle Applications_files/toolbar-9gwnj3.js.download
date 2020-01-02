@@ -1,0 +1,596 @@
+AdfUIComponents.createComponentClass("AdfRichCommandToolbarButton", {componentType:"oracle.adf.RichCommandToolbarButton", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"useWindow", type:"Boolean", "default":false}, {name:"windowModalityType", type:"String", "default":"modeless"}, {name:"windowEmbedStyle", type:"String", 
+"default":"window"}, {name:"windowHeight", type:"Number"}, {name:"windowWidth", type:"Number"}, {name:"iconDelivery", type:"String", "default":"auto"}, {name:"accessKey", type:"String"}, {name:"actionDelivery", type:"String", "default":"clientServer", secured:true}, {name:"partialSubmit", type:"Boolean", "default":true}, {name:"disabled", type:"Boolean", "default":false, secured:true}, {name:"depressedIcon", type:"String"}, {name:"hoverIcon", type:"String"}, {name:"disabledIcon", type:"String"}, 
+{name:"icon", type:"String"}, {name:"text", type:"String"}, {name:"type", type:"String", "default":"default"}, {name:"selected", type:"Boolean", "default":false}], superclass:AdfUICommand});
+
+AdfRichCommandToolbarButton.prototype.getAccessibleName = function() {
+  return this.getShortDesc()
+};
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlCommandToolbarButtonPeer");
+AdfDhtmlCommandToolbarButtonPeer.InitSubclass = function() {
+  AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.KEY_DOWN_EVENT_TYPE, AdfUIInputEvent.CLICK_EVENT_TYPE, AdfUIInputEvent.MOUSE_DOWN_EVENT_TYPE, AdfUIInputEvent.MOUSE_UP_EVENT_TYPE);
+  if(!AdfAgent.AGENT.isTouchFirstDevice()) {
+    AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.MOUSE_IN_EVENT_TYPE, AdfUIInputEvent.MOUSE_OUT_EVENT_TYPE)
+  }
+  AdfRichUIPeer.addComponentPropertyChanges(this, AdfRichCommandToolbarButton.DISABLED, AdfRichCommandToolbarButton.SELECTED, AdfRichCommandToolbarButton.SHORT_DESC, AdfRichCommandToolbarButton.TEXT);
+  this._POPUP_ELEMENT = "popEl";
+  this._POPUP_CONTAINER = "popCtr";
+  this._POPUP_CONTEXT_AREA = "popArea";
+  this._POPUP_CONTENT_ID = "popup";
+  this._POPUP_ID = "_afrPopId";
+  this._AFR_GROUPID = "_afrGrp";
+  this._DEPRESSED_STYLE_CLASS = "p_AFDepressed";
+  this._SELECTED_STYLE_CLASS = "p_AFSelected";
+  this._BUSY = "_busy"
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.BindToComponent = function(component, domElement) {
+  AdfDhtmlCommandToolbarButtonPeer.superclass.BindToComponent.call(this, component, domElement);
+  this._actionDisabled = AdfDomUtils.containsCSSClassName(domElement, "p_AFActionDisabled")
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.HandleComponentKeyDown = function(componentEvent) {
+  if(componentEvent.isCanceled()) {
+    return
+  }
+  var keyCode = componentEvent.getKeyCode();
+  var component = this.getComponent();
+  var popupId = this._getPopupId();
+  if(this._isEventInRootElement(componentEvent)) {
+    var actionDisabledAndKeyPress = this._actionDisabled && (keyCode == AdfKeyStroke.ENTER_KEY || keyCode == AdfKeyStroke.SPACE_KEY);
+    if(keyCode == AdfKeyStroke.ARROWDOWN_KEY || actionDisabledAndKeyPress) {
+      this._openPopupMenu(popupId, true, componentEvent)
+    }else {
+      if(keyCode == AdfKeyStroke.SPACE_KEY) {
+        var isBusy = component.getProperty(AdfDhtmlCommandToolbarButtonPeer._BUSY);
+        if(!component.getDisabled() && !isBusy) {
+          this._execute();
+          componentEvent.cancel()
+        }
+      }
+    }
+  }
+  if(keyCode == AdfKeyStroke.ESC_KEY) {
+    if(!popupId) {
+      popupId = component.getClientId()
+    }
+    this.hidePopup(component, popupId)
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.HandleComponentClick = function(componentEvent) {
+  if(!componentEvent.isLeftButtonPressed() || this._actionDisabled || this._isInPopupSelector(componentEvent) || !this._isEventInRootElement(componentEvent)) {
+    return
+  }
+  var component = this.getComponent();
+  var isBusy = component.getProperty(AdfDhtmlCommandToolbarButtonPeer._BUSY);
+  if(!component.getDisabled() && !isBusy) {
+    this._execute()
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.HandleComponentMouseOver = function(componentEvent) {
+  if(!this.getComponent().getDisabled() && this._isEventInRootElement(componentEvent)) {
+    this._displayMouseOverIcon(this.getComponent())
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.HandleComponentMouseOut = function(componentEvent) {
+  var component = this.getComponent();
+  if(component.getDisabled() || !this._isEventInRootElement(componentEvent)) {
+    return
+  }
+  if(component.getSelected()) {
+    this._setDepressedStyle(component, true);
+    this._displayMouseDownIcon(component)
+  }else {
+    this._setDepressedStyle(component, false);
+    this._displayDefaultIcon(component)
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.HandleComponentMouseUp = function(componentEvent) {
+  var component = this.getComponent();
+  if(component.getDisabled() || !componentEvent.isLeftButtonPressed() || !this._isEventInRootElement(componentEvent)) {
+    return
+  }
+  this._setDepressedStyle(component, false);
+  this._displayMouseOverIcon(component)
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.HandleComponentMouseDown = function(componentEvent) {
+  var component = this.getComponent();
+  var isLeftButtonPressed = componentEvent.isLeftButtonPressed();
+  var isDisabled = component.getDisabled();
+  if(isDisabled || !isLeftButtonPressed || !this._isEventInRootElement(componentEvent)) {
+    return
+  }
+  this._setDepressedStyle(component, true);
+  this._displayMouseDownIcon(component);
+  if(this._actionDisabled || this._isInPopupSelector(componentEvent)) {
+    var popupId = this._getPopupId();
+    this._openPopupMenu(popupId, false, componentEvent)
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.ComponentDisabledChanged = function(component, domElement, newValue, oldValue) {
+  var buttonAnchor = AdfDomUtils.getFirstDescendentElement(domElement, "A");
+  if(newValue == true) {
+    AdfDomUtils.addCSSClassName(domElement, AdfRichUIPeer.DISABLED_STYLECLASS);
+    buttonAnchor.removeAttribute("href");
+    this._displayDisabledIcon(component);
+    this._setAriaDisabled(component)
+  }else {
+    AdfDomUtils.removeCSSClassName(domElement, AdfRichUIPeer.DISABLED_STYLECLASS);
+    buttonAnchor.setAttribute("href", "#");
+    this._displayDefaultIcon(component);
+    this._removeAriaDisabled(component)
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.ComponentSelectedChanged = function(component, domElement, newValue, oldValue) {
+  var type = component.getType();
+  if(newValue) {
+    this._setDepressedStyle(component, true);
+    AdfDomUtils.addCSSClassName(domElement, AdfDhtmlCommandToolbarButtonPeer._SELECTED_STYLE_CLASS);
+    this._displayMouseDownIcon(component);
+    if(type == "radio") {
+      this._toggleRadioGroupItems();
+      this._enableAriaChecked(component)
+    }
+    if(type == "check") {
+      this._enableAriaPressed(component)
+    }
+  }else {
+    this._setDepressedStyle(component, false);
+    AdfDomUtils.removeCSSClassName(domElement, AdfDhtmlCommandToolbarButtonPeer._SELECTED_STYLE_CLASS);
+    this._displayDefaultIcon(component);
+    if(type == "radio") {
+      this._disableAriaChecked(component)
+    }
+    if(type == "check") {
+      this._disableAriaPressed(component)
+    }
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.ComponentShortDescChanged = function(component, domElement, newValue, oldValue) {
+  domElement.setAttribute("title", newValue);
+  var icon = this._getIconElement(component);
+  if(icon) {
+    icon.setAttribute("title", newValue);
+    icon.setAttribute("alt", newValue)
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.ComponentTextChanged = AdfDomUtils.__componentTextChanged;
+AdfDhtmlCommandToolbarButtonPeer.prototype.GetInlineEditor = function(event) {
+  return AdfDhtmlSimpleTextEditor.getInlineEditor()
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.SetBusy = function(isBusy) {
+  var component = this.getComponent();
+  var domElement = this.getDomElement();
+  var actionForm = AdfDomUtils.getFormElement(domElement);
+  if(!actionForm) {
+    return
+  }
+  var isMultipart = AdfDomUtils.getMultiPartForm(actionForm) != null;
+  if(component.getDisabled() || isMultipart) {
+    return
+  }
+  AdfDomUtils.addOrRemoveCSSClassName(isBusy, domElement, AdfRichUIPeer.DISABLED_STYLECLASS);
+  component.setProperty(AdfDhtmlCommandToolbarButtonPeer._BUSY, isBusy, false, AdfUIComponent.PROPAGATE_NEVER)
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.PopupClosed = function(component, contentDom, popupId) {
+  AdfDhtmlCommandToolbarButtonPeer.superclass.PopupClosed.call(this, component, contentDom);
+  var clientId = component.getClientId();
+  if(popupId == clientId) {
+    var containerId = AdfRichUIPeer.createSubId(clientId, AdfDhtmlCommandToolbarButtonPeer._POPUP_CONTAINER);
+    var containerNode = AdfAgent.AGENT.getElementById(containerId);
+    if(containerNode) {
+      containerNode.appendChild(contentDom)
+    }
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype.__preferredSizeChangeNotify = function(component) {
+  this.bind(component);
+  var parent = this.getComponentParent(component);
+  var parentPeer = parent != null ? parent.getPeer() : null;
+  if(parentPeer && parentPeer.__preferredSizeChangeNotify) {
+    parentPeer.__preferredSizeChangeNotify(parent)
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._execute = function() {
+  var component = this.getComponent();
+  var actionEvent = new AdfActionEvent(component);
+  actionEvent.queue(component.getPartialSubmit());
+  if(!actionEvent.isCanceled()) {
+    var type = component.getType();
+    if(type == "check") {
+      component.setSelected(!component.getSelected())
+    }else {
+      if(type == "radio") {
+        this._toggleRadioGroupItems()
+      }
+    }
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._openPopupMenu = function(popupId, autoFocus, componentEvent) {
+  var component = this.getComponent();
+  var clientId = component.getClientId();
+  var dropDownButtonId = AdfRichUIPeer.createSubId(clientId, AdfDhtmlCommandToolbarButtonPeer._POPUP_ELEMENT);
+  var dropDownButton = AdfAgent.AGENT.getElementById(dropDownButtonId);
+  if(!dropDownButton) {
+    return
+  }
+  var alignElement = this.getDomElement();
+  if(popupId != null) {
+    var popupMenu = AdfPage.PAGE.findComponent(popupId);
+    var popupPeer = popupMenu.getPeer();
+    var hints = {};
+    hints[AdfDhtmlPopupWindow.HINT_ALIGN_ELEMENT] = alignElement;
+    hints[AdfRichPopup.HINT_ALIGN] = AdfRichPopup.ALIGN_AFTER_START;
+    hints[AdfDhtmlPopupWindow.HINT_FOCUS] = autoFocus;
+    popupPeer.show(hints);
+    componentEvent.cancel()
+  }else {
+    var popupContId = AdfRichUIPeer.createSubId(clientId, AdfDhtmlCommandToolbarButtonPeer._POPUP_CONTAINER);
+    var popupContainer = AdfAgent.AGENT.getElementById(popupContId);
+    if(popupContainer != null) {
+      var contentNode = popupContainer.firstChild;
+      while(contentNode && contentNode.nodeType == 8) {
+        contentNode = contentNode.nextSibling
+      }
+      if(contentNode != null) {
+        var hints = new Object;
+        var contentNodeId = AdfRichUIPeer.createSubId(clientId, AdfDhtmlCommandToolbarButtonPeer._POPUP_CONTENT_ID);
+        if(contentNode.id != contentNodeId) {
+          var divWrapper = popupContainer.ownerDocument.createElement("div");
+          divWrapper.appendChild(contentNode);
+          contentNode = divWrapper;
+          contentNode.id = contentNodeId
+        }
+        hints[AdfDhtmlPopupWindow.HINT_AUTODISMISS] = AdfDhtmlPopupWindow.HINT_AUTODISMISS_ALWAYS;
+        hints[AdfDhtmlPopupWindow.HINT_ALIGN_ELEMENT] = alignElement;
+        hints[AdfRichPopup.HINT_ALIGN] = AdfRichPopup.ALIGN_AFTER_START;
+        hints[AdfDhtmlPopupWindow.HINT_FOCUS] = autoFocus;
+        this.showPopup(component, contentNode, hints, clientId);
+        componentEvent.cancel()
+      }
+    }
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._toggleRadioGroupItems = function() {
+  var component = this.getComponent();
+  var domElement = this.getDomElement();
+  var currentGroupId = this._getGroupId(domElement);
+  var parent = component.getParent();
+  var parentPeer = parent.getPeer();
+  var siblings = parentPeer.getDescendantComponents(parent);
+  for(var i = 0;i < siblings.length;i++) {
+    var sibling = siblings[i];
+    var siblingElement = AdfRichUIPeer.getDomElementForComponent(sibling);
+    var groupId = this._getGroupId(siblingElement);
+    if(currentGroupId == groupId) {
+      if(sibling != component && sibling.getType && sibling.getType() == "radio") {
+        this._toggleComponentUnselected(sibling)
+      }
+    }
+  }
+  component.setSelected(true)
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._getGroupId = function(domElement) {
+  return domElement.getAttribute(AdfDhtmlCommandToolbarButtonPeer._AFR_GROUPID)
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._toggleComponentUnselected = function(buttonComponent) {
+  buttonComponent.setSelected(false);
+  this._setDepressedStyle(buttonComponent, false);
+  this._displayDefaultIcon(buttonComponent)
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._getIconElement = function(component) {
+  var clientId = component.getClientId();
+  var iconId = AdfRichUIPeer.createSubId(clientId, "icon");
+  return AdfAgent.AGENT.getElementById(iconId)
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._displayDefaultIcon = function(component) {
+  this._displayIcon(component, null)
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._displayMouseDownIcon = function(component) {
+  this._displayIcon(component, component.getDepressedIcon())
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._displayMouseOverIcon = function(component) {
+  if(!component.getSelected()) {
+    this._displayIcon(component, component.getHoverIcon())
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._displayDisabledIcon = function(component) {
+  this._displayIcon(component, component.getDisabledIcon())
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._displayIcon = function(component, icon) {
+  if(!AdfRichUIPeer.isInlineSVGIcon(component)) {
+    var defaultIcon = component.getIcon();
+    var iconElement = this._getIconElement(component);
+    if(iconElement && defaultIcon) {
+      iconElement.src = icon || defaultIcon
+    }
+  }else {
+    if(icon) {
+      AdfLogger.LOGGER.warning("component: ", component.getClientId(), ", depressed, disabled and hover icons are not supported when " + "iconDelivery is inline/fetchAndInline for svg icons." + "CSS styles can be applied on inline SVG to handle these states." + "Icon url: ", icon)
+    }
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._setDepressedStyle = function(component, depressed) {
+  var domElement = AdfRichUIPeer.getDomElementForComponent(component);
+  var className = AdfDhtmlCommandToolbarButtonPeer._DEPRESSED_STYLE_CLASS;
+  if(depressed) {
+    AdfDomUtils.addCSSClassName(domElement, className)
+  }else {
+    AdfDomUtils.removeCSSClassName(domElement, className)
+  }
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._isInPopupSelector = function(componentEvent) {
+  var component = this.getComponent();
+  var toolbarId = component.getClientId();
+  var popupAreaId = AdfRichUIPeer.createSubId(toolbarId, AdfDhtmlCommandToolbarButtonPeer._POPUP_CONTEXT_AREA);
+  var evtTarget = componentEvent.getNativeEventTarget();
+  while(evtTarget != null && evtTarget.id != toolbarId) {
+    if(evtTarget.id == popupAreaId) {
+      return true
+    }
+    evtTarget = evtTarget.parentNode
+  }
+  return false
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._getPopupId = function() {
+  var component = this.getComponent();
+  var dropDownButtonId = AdfRichUIPeer.createSubId(component.getClientId(), AdfDhtmlCommandToolbarButtonPeer._POPUP_ELEMENT);
+  var dropDownButton = AdfAgent.AGENT.getElementById(dropDownButtonId);
+  if(!dropDownButton) {
+    return null
+  }
+  var evtTarget = dropDownButton;
+  var parent = evtTarget.parentNode;
+  var popupId = parent.getAttribute(AdfDhtmlCommandToolbarButtonPeer._POPUP_ID);
+  if(popupId == null) {
+    var gparent = parent.parentNode;
+    popupId = gparent.getAttribute(AdfDhtmlCommandToolbarButtonPeer._POPUP_ID)
+  }
+  return popupId
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._isEventInRootElement = function(componentEvent) {
+  var targetNode = componentEvent.getNativeEventTarget();
+  var popupId = this._getPopupId();
+  var hasPopup = popupId != null;
+  var rootNode = this.getDomElement();
+  for(var node = targetNode;node.parentNode;node = node.parentNode) {
+    if(hasPopup && popupId == node.id) {
+      return false
+    }
+    if(node == rootNode) {
+      return true
+    }
+  }
+  return false
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._enableAriaPressed = function(component) {
+  var domElement = this.getDomElement();
+  if(domElement.tagName != "A") {
+    domElement = AdfDomUtils.getDescendentElement(domElement, "a", 0)
+  }
+  domElement.setAttribute("aria-pressed", "true")
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._disableAriaPressed = function(component) {
+  var domElement = this.getDomElement();
+  if(domElement.tagName != "A") {
+    domElement = AdfDomUtils.getDescendentElement(domElement, "a", 0)
+  }
+  domElement.setAttribute("aria-pressed", "false")
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._enableAriaChecked = function(component) {
+  var domElement = this.getDomElement();
+  if(domElement.tagName != "A") {
+    domElement = AdfDomUtils.getDescendentElement(domElement, "a", 0)
+  }
+  var role = domElement.getAttribute("role");
+  var state = role.toLowerCase() == "button" ? "aria-pressed" : "aria-checked";
+  domElement.setAttribute(state, "true")
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._disableAriaChecked = function(component) {
+  var domElement = this.getDomElement();
+  if(domElement.tagName != "A") {
+    domElement = AdfDomUtils.getDescendentElement(domElement, "a", 0)
+  }
+  var role = domElement.getAttribute("role");
+  var state = role.toLowerCase() == "button" ? "aria-pressed" : "aria-checked";
+  domElement.setAttribute(state, "false")
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._setAriaDisabled = function(component) {
+  var domElement = this.getDomElement();
+  if(domElement.tagName != "A") {
+    domElement = AdfDomUtils.getDescendentElement(domElement, "a", 0)
+  }
+  domElement.setAttribute("aria-disabled", "true")
+};
+AdfDhtmlCommandToolbarButtonPeer.prototype._removeAriaDisabled = function(component) {
+  var domElement = this.getDomElement();
+  if(domElement.tagName != "A") {
+    domElement = AdfDomUtils.getDescendentElement(domElement, "a", 0)
+  }
+  domElement.removeAttribute("aria-disabled")
+};
+
+AdfUIComponents.createComponentClass("AdfRichToolbar", {componentType:"oracle.adf.RichToolbar", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"flex", type:"Number", "default":0}, {name:"stretchId", type:"String"}], superclass:AdfUIPanel});
+
+AdfRichToolbar.HORIZONTAL = "horizontal";
+AdfRichToolbar.VERTICAL = "vertical";
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlToolbarPeer", false);
+AdfDhtmlToolbarPeer.InitSubclass = function() {
+  this._OVERFLOW_ELEMENT_STYLE_CLASS = "AFToolbarOverflowElement"
+};
+AdfDhtmlToolbarPeer.prototype.InitDomElement = function(component, domElement) {
+  AdfDhtmlToolbarPeer.superclass.InitDomElement.call(this, component, domElement);
+  var clientId = component.getClientId();
+  var id = AdfRichUIPeer.CreateSubId(clientId, "eoc");
+  var agent = AdfAgent.AGENT;
+  this._overflowContainer = agent.getElementById(id);
+  this._isOverflowSupported = this._overflowContainer ? true : false;
+  if(this._isOverflowSupported == true) {
+    id = AdfRichUIPeer.CreateSubId(clientId, "eoi");
+    this._overflowIndicator = agent.getElementById(id)
+  }
+  AdfPage.PAGE.__registerDescendantResizeNotifyComponent(component);
+  var tableElement = domElement.getElementsByTagName("table")[0];
+  this._childContainers = agent.getTableRowCells(agent.getTableRow(tableElement, 0))
+};
+AdfDhtmlToolbarPeer.prototype.needsChildVisibilityChanges = function(component) {
+  return true
+};
+AdfDhtmlToolbarPeer.prototype.needsResizeNotify = function(component) {
+  return true
+};
+AdfDhtmlToolbarPeer.prototype.getDescendantComponents = function(component, children) {
+  if(!children) {
+    children = new Array
+  }
+  AdfDhtmlToolbarPeer.superclass.getDescendantComponents.call(this, component, children);
+  if(this._isOverflowSupported == true) {
+    AdfOverflowSupport.getOverflowChildComponents(component, children)
+  }
+  return children
+};
+AdfDhtmlToolbarPeer.prototype.ResizeNotify = function(oldWidth, oldHeight, newWidth, newHeight) {
+  var rootElement = this.getDomElement();
+  var component = this.getComponent();
+  var id = component.getClientId();
+  if(this._isOverflowSupported == false && !component.getStretchId()) {
+    return
+  }
+  this._unStretch();
+  if(this._isOverflowSupported == true) {
+    if(!this._overflowSupport) {
+      this._overflowSupport = new AdfOverflowSupport(id, this, "end");
+      var tableElement = rootElement.getElementsByTagName("table")[0];
+      var agent = AdfAgent.AGENT;
+      var toolbarItems = agent.getTableRowCells(agent.getTableRow(tableElement, 0));
+      var i = 0;
+      var toolbarItem = toolbarItems[0];
+      while(toolbarItem) {
+        this._overflowSupport.createStep();
+        this._overflowSupport.addElement(toolbarItem);
+        var childElement = AdfDomUtils.getFirstChildElement(toolbarItem);
+        if(childElement) {
+          var toolbarChildComponent = AdfPage.PAGE.findComponent(childElement.id);
+          var spacerNotDefinedOnPage = window["AdfRichSpacer"] == undefined;
+          if(spacerNotDefinedOnPage || !(toolbarChildComponent instanceof AdfRichSpacer)) {
+            var overflowElement = this._createOverflowElement(childElement);
+            this._overflowSupport.addOverflowElement(overflowElement)
+          }
+        }
+        i++;
+        toolbarItem = toolbarItems[i]
+      }
+    }
+    this._overflowSupport.handleResize()
+  }
+  this._reStretch()
+};
+AdfDhtmlToolbarPeer.prototype.ChildVisibilityChanged = function(childComponent, childDomElement, childVisible) {
+  AdfPage.PAGE.addPartialTargets(this.getComponent());
+  return false
+};
+AdfDhtmlToolbarPeer.prototype.GetPreferredWidth = function() {
+  if(!this._preferredWidth) {
+    var rootEl = this.getDomElement();
+    var content = rootEl.firstChild;
+    this._unStretch();
+    if(this._overflowSupport) {
+      this._overflowSupport.removeAllItemsFromOverflow()
+    }
+    this._preferredWidth = content.offsetWidth;
+    this._reStretch()
+  }
+  return this._preferredWidth
+};
+AdfDhtmlToolbarPeer.prototype.GetMinimumWidth = function() {
+  if(!this._minimumWidth) {
+    if(this._isOverflowSupported == false) {
+      this._minimumWidth = this.GetPreferredWidth()
+    }else {
+      if(this._childContainers && this._childContainers.length > 0) {
+        var oldIndicatorDisplay = this._overflowIndicator.style.display;
+        var overflowIndicator = this._overflowIndicator;
+        overflowIndicator.style.display = "block";
+        var currentStyle = AdfAgent.AGENT.getComputedStyle(overflowIndicator);
+        this._minimumWidth = overflowIndicator.offsetWidth + AdfAgent.getCSSLengthAsInt(currentStyle.marginLeft) + AdfAgent.getCSSLengthAsInt(currentStyle.marginRight);
+        overflowIndicator.style.display = oldIndicatorDisplay;
+        var preferredWidth = this.GetPreferredWidth();
+        if(this._minimumWidth > preferredWidth) {
+          this._minimumWidth = preferredWidth
+        }
+      }else {
+        this._minimumWidth = 0
+      }
+    }
+  }
+  return this._minimumWidth
+};
+AdfDhtmlToolbarPeer.prototype.ComponentRemoved = function(component) {
+  delete this._overflowContainer;
+  delete this._overflowIndicator;
+  delete this._childContainers;
+  if(this._overflowSupport) {
+    this._overflowSupport.removeOverflowSupport();
+    delete this._overflowSupport
+  }
+  AdfPage.PAGE.__unregisterDescendantResizeNotifyComponent(component);
+  AdfDhtmlToolbarPeer.superclass.ComponentRemoved.call(this, component)
+};
+AdfDhtmlToolbarPeer.prototype.__preferredSizeChangeNotify = function(component) {
+  this.bind(component);
+  this._preferredWidth = null;
+  this._minimumWidth = null;
+  var parent = this.getComponentParent(component);
+  var parentPeer = parent != null ? parent.getPeer() : null;
+  if(parentPeer && parentPeer.__preferredSizeChangeNotify) {
+    parentPeer.__preferredSizeChangeNotify(parent)
+  }
+};
+AdfDhtmlToolbarPeer.prototype._unStretch = function() {
+  var stretchElement = this._getStretchElement();
+  if(stretchElement) {
+    stretchElement.parentNode.style.width = ""
+  }
+};
+AdfDhtmlToolbarPeer.prototype._reStretch = function() {
+  var stretchElement = this._getStretchElement();
+  if(stretchElement) {
+    var maxWidth = AdfAgent.AGENT.getWindowWidth() + "px";
+    stretchElement.parentNode.style.width = maxWidth
+  }
+};
+AdfDhtmlToolbarPeer.prototype._createOverflowElement = function(element) {
+  var doc = element.ownerDocument;
+  var table = doc.createElement("table");
+  table.cellPadding = 0;
+  table.cellSpacing = 0;
+  table.style.width = "auto";
+  var row = table.insertRow(-1);
+  var cell = row.insertCell(-1);
+  var swapPosition = this._overflowSupport.createSwapPosition(element);
+  cell.appendChild(swapPosition);
+  cell = row.insertCell(-1);
+  cell.style.width = "auto";
+  return table
+};
+AdfDhtmlToolbarPeer.prototype._getStretchElement = function() {
+  var toolbar = this.getComponent();
+  var stretchId = toolbar.getStretchId();
+  if(stretchId) {
+    var stretchComponent = toolbar.findComponent(stretchId);
+    if(stretchComponent) {
+      var stretchClientId = stretchComponent.getClientId();
+      return AdfAgent.AGENT.getElementById(stretchClientId)
+    }else {
+      AdfLogger.LOGGER.warning("Unable to find client component for stretch id " + stretchId)
+    }
+  }
+  return null
+};
+AdfDhtmlToolbarPeer.prototype.SimulateMouseOnDescendant = function(targetComponent, domElement, mouseEvent) {
+  AdfDhtmlToolbarPeer.superclass.SimulateMouseOnDescendant.call(this, targetComponent, domElement, mouseEvent);
+  if(this._isOverflowSupported) {
+    if(this._overflowSupport.isInOverflow(domElement)) {
+      this._overflowSupport.showOverflowPopup()
+    }
+  }
+};

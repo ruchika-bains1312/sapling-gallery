@@ -1,0 +1,465 @@
+.multiline-list>li:hover{
+background-color:#D4D4D4;
+}
+.filter-top-panel-container{
+background-color:#F2F2F2;
+}
+.jobsearch .topSearchPanel, .advanced-search-panel-container{
+background-color:#D4D4D4;
+}
+body .masterbody, .mainsection .mastercontentpanel, .mainsection .mastercontentpanel2, .jobsearch .resultpropertiescontentpanel, .jobsearch .boxresultsb2, .jobsearch .boxresultsb3, .jobsearch .boxresultsb4, .headersection .link2panel .link2 a:hover, .jobsearch .tablelistradius,.processesNotSelectedTaskItem td:hover,.processes-table-link td:hover{
+background-color:white;
+}
+.headersection .headerpanel, .headersection .box .boxtop .boxb2-top, .headersection .box .boxtop .boxb3-top, .headersection .box .boxtop .boxb4-top, .footeraction .footeractionpanel, .footeraction .box .boxbottom .boxb4, .footeraction .box .boxbottom .boxb3, .footeraction .box .boxbottom .boxb2, .mainsection .headerpanel, .mainsection .boxtrain .boxtraintop .boxtrainb2-top, .mainsection .boxtrain .boxtraintop .boxtrainb3-top, .mainsection .boxtrain .boxtraintop .boxtrainb4-top, .alert-frame, .shiftavailability .titleshiftpanel, .shiftavailability .titledaypanel{
+background-color:#F2F2F2;
+}
+.mainsection .iconpanelupdated, .mainsection .iconcontentpanelupdated, .headersection .link2panel, .mainsection .myjobpage .messagenotepanel, .headerpanel .datatrain-t, .headerpanel .datatrain-tv, .headerpanel .datatrain-tv-left-margin, .headerpanel .datatrain-tv-right-margin, .alert-message-notification, .shiftavailability .allshiftpanel, .shiftavailability .alldaypanel, .myaccount .headerblockpanel, .summary .headerblockpanel, .jobsearch .linkpanel, .jobsearch .boxpanelb2-top, .jobsearch .boxpanelb3-top, .jobsearch .boxpanelb4-top, .processesNotSelectedTaskItem td, .processes-table-link{
+background-color:#D4D4D4;
+}
+.alert-full-page-bg, .shiftavailability .contentpanel, .datatrain-wagon, .shiftavailability .shiftcontentpanel, .shiftavailability .daycontentpanel{
+background-color:#FFFFFF;
+}
+.messagenotepanel, .message-notification, .messagecontentpanel{
+background-color:#F1F1F2;
+}
+.messagewarningpanel, .message-warning{
+background-color:#FFF8E5;
+}
+.messageerrorpanel, .message-error{
+background-color:#FEF2EE;
+}
+.jobsearch .savecontentpanel, .jobsearch .selectedlink, .jobsearch .contentdatapanel, .jobsearch .boxpanelb2, .jobsearch .boxpanelb3, .jobsearch .boxpanelb4, .jobsearch .linkpanel .link a:hover, .mainsection .myjobpage .statuspanel, .datatrain-focus, .datatrain-focus-left, .datatrain-focus-right, .datatrain-no-focus-left, .datatrain-no-focus-right, .blockpanel .list-header{
+background-color:#F2F2F2;
+}
+.headersection .headerpanel .linkpanel .link{
+background-color:#FFFFFF;
+}
+.headersection .headerpanel .linkpanel .selectedlink{
+background-color:#D4D4D4;
+}
+.headersection .link2panel .selectedlink2, .processesSelectedTaskItem{
+background-color:#FFFFFF;
+}
+.filter-panel .filter-quantity{
+color:#808080;
+font-weight:normal;
+font-style:normal;
+text-decoration:none;
+}
+.filter-panel .filter-text{
+color:#4D4D4D;
+font-weight:normal;
+font-style:normal;
+text-decoration:none;
+}
+.filter-panel .filter-group-header a{
+color:#333333;
+font-weight:bold;
+font-style:normal;
+text-decoration:none;
+}
+.filter-top-panel-container .filter-list{
+color:#666666;
+font-style:normal;
+text-decoration:none;
+font-weight:normal;
+}
+.jobsearch .topSearchPanel, .advanced-search-panel-container{
+font-family:"helvetica neue", arial, verdana, sans-serif;
+color:#666666;
+}
+body .masterbody, .alert-frame, .sugInput-sug, .callout, .blockpanel .input-textarea, .blockpanel .input-text, .blockpanel .input-smaller input, .blockpanel .input-select, .blockpanel .input-date-time select, .blockpanel .sugInput-input, .blockpanel .entity-value select, .blockpanel .inputtextmulti, .blockpanel .inputtextmulti2{
+font-family:"helvetica neue", arial, verdana, sans-serif;
+font-size:1.1em;
+}
+.mainsection .subtitle, .blockpanel .title, .blockpanel .list-header .subtitle, .blockpanel .entity-title, .myaccount .subtitleblock, .summary .subtitleblock, .shiftavailability .titlesection, .alert-title, .mainsection .searchresults .resultstitlepanel .subtitle, .mainsection .myjobpage .resultstitlepanel .subtitle, .jobsearch .subtitle, .jobsearch .savetitlepanel .subtitle, .olflist .listpanel .subtitle, .messagecenter .page-header-title, .mainsection .subscribepage .header .subtitle{
+text-decoration:none;
+color:#333333;
+font-size:1.2em;
+font-style:normal;
+font-weight:bold;
+}
+.mainsection .label, .blockpanel .entity-label, .menuHierarchy label, .entity-checkbox-label, .summary .label, .myaccount .label, .mainsection .label, .accessmanagement .entity-label-mandatory, .mainsection .searchresults .label, .mainsection .myjobpage .label, .mainsection .pagerpanel .pagersectionpanel .pagerlabel, .jobsearch .labelcontent, .jobsearch .contentdatapanel .searchLookup, .jobsearch .label, .jobsearch .savepanel .label, .jobsearch .resultpropertiescontentpanel .label, .myaccount .entity-instruction, .myaccount .text, .skillsgrouppanel .labelcontent, .messagecenter .entity-label, .messagecenter .column-header-value{
+font-weight:normal;
+color:#575757;
+font-size:1.2em;
+font-style:normal;
+text-decoration:none;
+}
+.mainsection .text, .jobsearch .text, .jobsearch .savepanel .descriptionpanel .text, .mainsection .searchresults .text, .mainsection .myjobpage .text, .blockpanel .descriptionpanel .text, .myaccount .text, .shiftavailability .shiftcontentpanel, .shiftavailability .daycontentpanel, .shiftavailability .daycontentpanelread, .alert-message, .mainsection .text, .accessmanagement .page-header-text, .mainsection .separator, .messagecenter .page-header-text, .messagecenter .entity-value, .messagecenter .list-column-value{
+font-size:1.2em;
+text-decoration:none;
+color:black;
+font-style:normal;
+font-weight:normal;
+}
+.headersection .headerpanel .userpanel .username{
+font-style:normal;
+color:#666666;
+font-size:1.2em;
+font-weight:bold;
+text-decoration:none;
+}
+.column165 .helppanel .helptitle{
+font-size:1.0em;
+text-decoration:none;
+color:#333333;
+font-style:normal;
+font-weight:bold;
+}
+.column165 .helppanel .helpsubtitle{
+font-style:normal;
+color:#333333;
+font-size:1.0em;
+font-weight:bold;
+text-decoration:none;
+}
+.column165 .helppanel .helplabel{
+color:#686868;
+text-decoration:none;
+font-size:1.0em;
+font-style:normal;
+font-weight:normal;
+}
+.column165 .legendpanel .legendtitle{
+font-style:normal;
+color:black;
+font-size:1.0em;
+font-weight:bold;
+text-decoration:none;
+}
+.column165 .legendpanel .legendlabel{
+color:#686868;
+text-decoration:none;
+font-size:1.0em;
+font-style:normal;
+font-weight:normal;
+}
+.jobsearch .subtitle, .jobsearch .savetitlepanel .subtitle{
+color:#333333;
+}
+.jobsearch .text, .jobsearch .savepanel .descriptionpanel .text, .jobsearch .separator{
+color:#888888;
+}
+.jobsearch .label, .jobsearch .savepanel .label, .jobsearch .resultpropertiescontentpanel .label{
+color:#666666;
+}
+.jobsearch .labelcontent, .jobsearch .contentdatapanel .searchLookup{
+}
+.mainsection .searchresults .resultstitlepanel .subtitle, .mainsection .myjobpage .resultstitlepanel .subtitle, .mainsection .subscribepage .header .subtitle{
+color:#333333;
+}
+.mainsection .searchresults .text, .mainsection .myjobpage .text, .mainsection .pagerpanel .pagersectionpanel .separator{
+color:#666666;
+}
+.mainsection .searchresults .label, .mainsection .myjobpage .label, .mainsection .pagerpanel .pagersectionpanel .pagerlabel{
+color:#686868;
+}
+.mainsection .jobtype{
+color:#666666;
+font-weight:normal;
+font-style:normal;
+font-size:1.2em;
+text-decoration:none;
+}
+.mainsection .jobreferral{
+font-style:normal;
+text-decoration:none;
+color:#008000;
+font-size:1.2em;
+font-weight:bold;
+}
+.mainsection .jobposted, .mainsection .jobpostedinline{
+color:#575757;
+font-style:normal;
+text-decoration:none;
+font-size:1.2em;
+font-weight:normal;
+}
+.mainsection .infojob{
+text-decoration:none;
+color:#333333;
+font-style:normal;
+font-size:1.2em;
+font-weight:bold;
+}
+.datatrain-wagon{
+font-size:1.0em;
+font-weight:normal;
+color:#666666;
+font-style:normal;
+text-decoration:none;
+}
+.mainsection .flowstatus{
+font-weight:normal;
+font-style:normal;
+font-size:1.2em;
+color:#333333;
+text-decoration:none;
+}
+.accessmanagement .entity-mandatory-field{
+color:#333333;
+font-weight:normal;
+font-style:italic;
+font-size:1.1em;
+text-decoration:none;
+}
+.myaccount .title, .myaccount .titleaction, .mainsection .titlepage, .accessmanagement .page-heading-header-title, .myaccount .titleblock, .summary .titleblock{
+color:#333333;
+font-weight:bold;
+font-style:normal;
+font-size:1.6em;
+text-decoration:none;
+}
+.blockpanel .title, .blockpanel .list-header .subtitle, .blockpanel .entity-title, .myaccount .subtitleblock, .summary .subtitleblock, .shiftavailability .titlesection, .alert-title, .mainsection .subtitle{
+}
+.myaccount .subtitle, .summary .subtitle, .myaccount .titleblock, .summary .titleblock{
+font-weight:bold;
+font-size:1.4em;
+color:#666666;
+font-style:normal;
+text-decoration:none;
+}
+.blockpanel .list .listpanel .subtitle{
+color:#575757;
+font-style:normal;
+font-size:1.2em;
+text-decoration:none;
+font-weight:bold;
+}
+.blockpanel .list .listpanel .titlelinkoff, .olflist .listpanel .titlelinkoff, .mainsection .titlelinkoff{
+font-style:normal;
+text-decoration:none;
+font-size:1.5em;
+font-weight:bold;
+color:#333333;
+}
+.blockpanel .descriptionpanel .text, .myaccount .text, .shiftavailability .shiftcontentpanel, .shiftavailability .daycontentpanel, .alert-message, .mainsection .text, .accessmanagement .page-header-text{
+}
+.blockpanel .entity-label, .menuHierarchy label, .entity-checkbox-label, .summary .label, .myaccount .label, .mainsection .label, .accessmanagement .entity-label-mandatory{
+}
+.blockpanel .entity-value, .blockpanel .entity-value select, .summary .value, .myaccount .value{
+font-size:1.2em;
+text-decoration:none;
+color:black;
+font-style:normal;
+font-weight:normal;
+}
+.error-label{
+font-size:1.2em;
+font-weight:normal;
+text-decoration:none;
+color:#003366;
+font-style:normal;
+}
+.message-title, .messagetitle{
+color:black;
+font-size:1.4em;
+font-weight:bold;
+text-decoration:none;
+font-style:normal;
+}
+.message-text, .messagetext, .messagecontentpanel .text{
+color:black;
+font-style:normal;
+text-decoration:none;
+font-size:1.2em;
+font-weight:normal;
+}
+.mainsection .myjobpage .statuspanel .text{
+color:black;
+font-size:1.2em;
+font-style:normal;
+font-weight:bold;
+text-decoration:none;
+}
+.callout .title{
+color:black;
+font-size:1.3em;
+font-style:normal;
+font-weight:bold;
+text-decoration:none;
+}
+.callout .label{
+color:#575757;
+font-size:1.2em;
+font-style:normal;
+font-weight:normal;
+text-decoration:none;
+}
+.callout .value{
+color:black;
+font-size:1.2em;
+font-style:normal;
+font-weight:normal;
+text-decoration:none;
+}
+.callout .textnote{
+color:black;
+font-size:1.2em;
+font-style:normal;
+font-weight:normal;
+text-decoration:none;
+}
+.myaccount .entity-instruction{
+}
+.mainsection .jobupdated{
+color:#666666;
+font-size:1.2em;
+font-style:normal;
+font-weight:bold;
+text-decoration:none;
+}
+.filter-panel .filter-link-show-more a:hover{
+}
+.filter-panel .filter-link-show-more a{
+}
+.filter-panel .filter-link-see-all a:hover{
+}
+.filter-panel .filter-link-see-all a{
+}
+.multiline-data-container a:hover, .jobsbody th a:hover{
+}
+.multiline-data-container a, .jobsbody th a{
+}
+.search-panel-links-container a:hover, .add-olf-link a:hover{
+text-decoration:underline;
+color:#6A92A9;
+}
+.search-panel-links-container a, .add-olf-link a{
+text-decoration:none;
+font-style:normal;
+color:#6A92A9;
+font-weight:normal;
+}
+.headersection .metalink a, .footeraction .footeractionpanel .footergroupactionpanel .metalink2 a, .mainsection .metapanel .metalink a{
+text-decoration:none;
+font-size:1.0em;
+color:#888888;
+font-weight:normal;
+font-style:normal;
+}
+.headersection .metalink a:hover, .footeraction .footeractionpanel .footergroupactionpanel .metalink2 a:hover, .mainsection .metapanel .metalink a:hover{
+color:#888888;
+text-decoration:underline;
+}
+.mainsection .metalink2 a, .mainsection .pagerpanel .pagersectionpanel .pagerlink a, .blockpanel .loc-action-btn a, .mainsection .textlink a, .myaccount .metalink2 a, .accessmanagement .link-small a, .blockpanel .list .listpanel .metalink2 a, .footersection .poweredbytaleolink a, .messagecenter .toolbar a, .messagecenter .list-column a, .alert-button-panel a, .messagecenter .section-name a, .iam-link-small-no-text-decoration a{
+text-decoration:none;
+font-style:normal;
+color:#6A92A9;
+font-weight:normal;
+font-size:1.1em;
+}
+.mainsection .metalink2 a:hover, .mainsection .pagerpanel .pagersectionpanel .pagerlink a:hover, .blockpanel .loc-action-btn a:hover, .mainsection .textlink a:hover, .myaccount .metalink2 a:hover, .accessmanagement .link-small a:hover, .blockpanel .list .listpanel .metalink2 a:hover, .footersection .poweredbytaleolink a:hover, .messagecenter .toolbar a:hover, .messagecenter .list-column a:hover, .alert-button-panel a:hover, .messagecenter .section-name a:hover{
+color:#6A92A9;
+text-decoration:underline;
+}
+.jobsearch .action a, .blockpanel .metalink a, .mainsection .infopanel .metalink2 a{
+font-size:1.2em;
+font-weight:bold;
+font-style:normal;
+color:#6A92A9;
+text-decoration:none;
+}
+.jobsearch .action a:hover, .blockpanel .metalink a:hover, .mainsection .infopanel .metalink2 a:hover, .processesNotSelectedTaskItem td:hover{
+color:#6A92A9;
+text-decoration:underline;
+}
+.mainsection .titlelink a, .jobsearch .titlelink a{
+color:#333333;
+font-weight:bold;
+font-style:normal;
+font-size:1.5em;
+text-decoration:none;
+}
+.mainsection .titlelink a:hover, .jobsearch .titlelink a:hover{
+text-decoration:underline;
+color:#333333;
+}
+.mainsection .pagerpanel .pagersectionpanel .pagerlinkoff a{
+color:#333333;
+text-decoration:none;
+font-size:1.2em;
+font-weight:normal;
+font-style:normal;
+}
+.column165 .helppanel .helplink a{
+font-size:1.0em;
+text-decoration:none;
+color:#6A92A9;
+font-style:normal;
+font-weight:normal;
+}
+.column165 .helppanel .helplink a:hover{
+color:#6A92A9;
+text-decoration:underline;
+}
+.datatrain-wagon-link a, .sugInput-input-selected{
+font-size:1.0em;
+text-decoration:none;
+color:#6A92A9;
+font-style:normal;
+font-weight:normal;
+}
+.datatrain-wagon-link a:hover{
+text-decoration:underline;
+color:#6A92A9;
+}
+.blockpanel .input-date-time-text, .blockpanel .entity-select-action, .blockpanel .custom-form-columns a.nav-btn{
+font-size:1.0em;
+color:blue;
+font-style:normal;
+text-decoration:underline;
+font-weight:normal;
+}
+.shiftavailability a.act-compbuttongrid-wc{
+color:#6A92A9;
+font-style:normal;
+text-decoration:none;
+background-color:#EAEAEA;
+font-size:1.1em;
+font-weight:normal;
+}
+.shiftavailability a.act-compbuttongrid-wc:hover{
+color:#6A92A9;
+background-color:silver;
+}
+.result-list-button{
+background-color:#F2F2F2;
+color:#666666;
+}
+.jobsearch .topSearchPanel .search-button, .advanced-search-panel-container .clear-advanced-search-criteria, .advanced-search-panel-container .search-button{
+background-color:#F2F2F2;
+color:#666666;
+}
+.mainsection .inputtext, .mainsection .inputselect, .myaccount .inputtext300, .mainsection .inputtext300, .myaccount .inputtextmulti, .mainsection .inputtextmulti, .mainsection .inputtextmulti2, .jobsearch .inputtext, .jobsearch .savepanel .inputtext, .jobsearch .resultpropertiescontentpanel .inputselect, .mainsection .searchresults .sortbypanel .inputselect, .mainsection .listingperpagepanel .inputselect, .mainsection .inputtextmulti3, .blockpanel .input-textarea, .blockpanel .input-text, .blockpanel .input-smaller input, .blockpanel .input-select, .blockpanel .input-date-time select, .blockpanel .sugInput-input, .blockpanel .entity-value select{
+color:black;
+font-size:1.3em;
+background-color:white;
+font-style:normal;
+font-weight:normal;
+}
+.mainsection .inputbutton, .accessmanagement .nav-btn{
+color:#333333;
+font-style:normal;
+font-size:1.3em;
+background-color:#F2F2F2;
+font-weight:normal;
+}
+.headersection .headerpanel .metapanel .metalinkimg, .legendpanel .imgjobcart, .iconstatuspanel .imgjobcart{
+background:url("images/cart_black.gif") no-repeat;
+}
+.custom1{
+}
+.custom2{
+}
+.datatrain-tv{
+width:58em;
+}
+.datatrain-wrapper{
+width:72em;
+}
+.column165 .helppanel{
+width:200px;
+display:block;
+}

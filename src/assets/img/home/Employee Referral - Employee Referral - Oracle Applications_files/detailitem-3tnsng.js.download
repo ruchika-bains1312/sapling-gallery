@@ -1,0 +1,151 @@
+AdfUIComponents.createComponentClass("AdfRichShowDetailItem", {componentType:"oracle.adf.RichShowDetailItem", propertyKeys:[{name:"iconDelivery", type:"String", "default":"auto"}, {name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"persist", type:"Array"}, {name:"dontPersist", type:"Array"}, {name:"badge", type:"String"}, {name:"disabled", 
+type:"Boolean", "default":false, secured:true}, {name:"depressedIcon", type:"String"}, {name:"hoverIcon", type:"String"}, {name:"disabledIcon", type:"String"}, {name:"icon", type:"String"}, {name:"text", type:"String"}, {name:"accessKey", type:"String"}, {name:"flex", type:"Number", "default":0}, {name:"inflexibleHeight", type:"Number", "default":100}, {name:"stretchChildren", type:"String", "default":"none"}, "itemListener", {name:"displayIndex", type:"Number", "default":-1}, {name:"remove", type:"String", 
+"default":"inherit"}], eventNames:["item"], superclass:AdfUIShowDetail});
+
+AdfRichUIPeer.createPeerClass(AdfDhtmlShowDisclosurePeer, "AdfDhtmlShowDetailItemPeer");
+AdfDhtmlShowDetailItemPeer.InitSubclass = function() {
+  AdfRichUIPeer.addComponentPropertyChanges(this, AdfRichShowDetailItem.FLEX, AdfRichShowDetailItem.INFLEXIBLE_HEIGHT)
+};
+AdfDhtmlShowDetailItemPeer.prototype.InitDomElement = function(component, domElement) {
+  AdfDhtmlShowDetailItemPeer.superclass.InitDomElement.call(this, component, domElement);
+  this._bypassStretching = AdfPage.PAGE.isScreenReaderMode() && window["AdfRichPanelAccordion"] && component.getParent() instanceof AdfRichPanelAccordion;
+  if(this._bypassStretching) {
+    return
+  }
+  if(component.getStretchChildren() == "first") {
+    var onlyChild = AdfDomUtils.getOnlyChildElement(domElement);
+    if(onlyChild) {
+      if(this._isCapableOfAbsolutePositioning(component, onlyChild)) {
+        var onlyChildStyle = onlyChild.style;
+        onlyChildStyle.position = "absolute";
+        if(onlyChild.tagName == "IFRAME") {
+          onlyChildStyle.width = "100%";
+          onlyChildStyle.height = "100%"
+        }else {
+          onlyChildStyle.width = "auto";
+          onlyChildStyle.height = "auto";
+          onlyChildStyle.top = "0px";
+          onlyChildStyle.bottom = "0px";
+          onlyChildStyle.left = "0px";
+          onlyChildStyle.right = "0px"
+        }
+      }
+    }
+  }else {
+    if(AdfAgent.AGENT.getPlatform() == AdfAgent.IE_PLATFORM) {
+      var onlyChild = AdfDomUtils.getOnlyChildElement(domElement);
+      if(onlyChild && onlyChild.style && onlyChild.style.height == "100%") {
+        if(this._isCapableOfAbsolutePositioning(component, onlyChild)) {
+          onlyChild.style.position = "absolute"
+        }
+      }
+    }
+  }
+};
+AdfDhtmlShowDetailItemPeer.prototype.GetElementToReplaceWithSVG = function(component) {
+  var clientId = component.getClientId();
+  return AdfAgent.getAgent().getElementById(AdfRichUIPeer.CreateSubId(clientId, "icon"))
+};
+AdfDhtmlShowDetailItemPeer.prototype._isCapableOfAbsolutePositioning = function(component, onlyChild) {
+  var ancestor = onlyChild.parentNode;
+  if(window["AdfRichPanelTabbed"] && component.getParent() instanceof AdfRichPanelTabbed) {
+    var tdAncestorNumber = 4;
+    var ancestorNumber = 1;
+    var ancestor = onlyChild.parentNode;
+    while(ancestorNumber < tdAncestorNumber && ancestor != null) {
+      ancestor = ancestor.parentNode;
+      if(ancestor != null) {
+        ++ancestorNumber
+      }
+    }
+    if(ancestorNumber == tdAncestorNumber && ancestor != null && ancestor.tagName == "TD") {
+      this._bypassStretching = true;
+      return false
+    }
+  }else {
+    if(window["AdfRichPanelAccordion"] && component.getParent() instanceof AdfRichPanelAccordion) {
+      if(ancestor.style.position != "absolute") {
+        this._bypassStretching = true;
+        return false
+      }
+    }else {
+      if(window["AdfRichPanelSpringboard"] && component.getParent() instanceof AdfRichPanelSpringboard) {
+        if(ancestor.style.position != "absolute") {
+          this._bypassStretching = true;
+          return false
+        }
+      }
+    }
+  }
+  return true
+};
+AdfDhtmlShowDetailItemPeer.prototype.SetBusy = function(isBusy) {
+  if(AdfPage.PAGE.isAttachmentMode()) {
+    return
+  }
+  var component = this.getComponent();
+  var parent = component.getParent();
+  if(parent && parent.getComponentType() == "oracle.adf.RichPanelTabbed") {
+    var clientId = component.getClientId();
+    this._changeCursor(clientId, AdfDhtmlPanelTabbedPeer.TAB_SUB_ID_ABOVE, isBusy);
+    this._changeCursor(clientId, AdfDhtmlPanelTabbedPeer.TAB_SUB_ID_BELOW, isBusy)
+  }
+};
+AdfDhtmlShowDetailItemPeer.prototype.ComponentFlexChanged = function(component, domElement, newValue, oldValue) {
+  return this._propertyChangedHandled(component)
+};
+AdfDhtmlShowDetailItemPeer.prototype._propertyChangedHandled = function(component) {
+  var resizeHandlePropertyChange = component.ResizeHandlePropertyChange;
+  if(resizeHandlePropertyChange) {
+    return true
+  }else {
+    return false
+  }
+};
+AdfDhtmlShowDetailItemPeer.prototype.ComponentInflexibleHeightChanged = function(component, domElement, newValue, oldValue) {
+  return this._propertyChangedHandled(component)
+};
+AdfDhtmlShowDetailItemPeer.prototype.DomReplaceNotify = function(replacedDomNode) {
+  if(this._bypassStretching) {
+    return
+  }
+  var component = this.getComponent();
+  if(replacedDomNode.style.position != "absolute" && replacedDomNode.parentNode.style.position == "absolute") {
+    if(component.getStretchChildren() == "first") {
+      if(AdfDomUtils.getOnlyChildElement(this.getDomElement()) == replacedDomNode) {
+        var onlyChildStyle = replacedDomNode.style;
+        onlyChildStyle.position = "absolute";
+        onlyChildStyle.width = "100%";
+        onlyChildStyle.height = "100%"
+      }
+    }else {
+      if(AdfAgent.AGENT.getPlatform() == AdfAgent.IE_PLATFORM) {
+        var onlyChild = AdfDomUtils.getOnlyChildElement(this.getDomElement());
+        if(onlyChild && onlyChild == replacedDomNode && onlyChild.style && onlyChild.style.height == "100%") {
+          if(this._isCapableOfAbsolutePositioning(component, onlyChild)) {
+            onlyChild.style.position = "absolute"
+          }
+        }
+      }
+    }
+  }
+  return replacedDomNode
+};
+AdfDhtmlShowDetailItemPeer.prototype._changeCursor = function(clientId, subId, isBusy) {
+  var tabId = AdfRichUIPeer.CreateSubId(clientId, subId);
+  var tabElement = AdfAgent.getAgent().getElementById(tabId);
+  if(tabElement) {
+    AdfDomUtils.addOrRemoveCSSClassName(isBusy, tabElement, AdfRichUIPeer.BUSY_STYLECLASS)
+  }
+};
+AdfDhtmlShowDetailItemPeer.prototype.getContainerId = function(aligningElement) {
+  var component = this.getComponent();
+  var parent = component.getParent();
+  var parentPeer = parent.getPeer();
+  if(parentPeer && parentPeer.getContainerId) {
+    parentPeer.bind(parent);
+    return parentPeer.getContainerId(aligningElement)
+  }else {
+    return component.getClientId()
+  }
+};

@@ -1,0 +1,545 @@
+
+var closeAtkNotificationPopupFlag = "Y";
+var atkNotificationPopupId = "";
+var isAtkNotificationPopupTransient = "N";
+
+var AtkWinLauncher = new Object();
+AtkWinLauncher.launchedWindows = {};
+
+AtkWinLauncher.ONLINE_CONTENT_WIN = "onlineContentWindow";
+AtkWinLauncher.ONLINE_CONTENT_PROPS = "location=1,toolbar=1,status=1,menubar=1,directories=1,resizable=1";
+AtkWinLauncher.OHW_WIN = "helpWindow";
+AtkWinLauncher.OHW_PROPS = "location=0,toolbar=0,status=0,menubar=0,directories=0,resizable=1";
+AtkWinLauncher.OHW_HEIGHT = "600";
+AtkWinLauncher.OHW_WIDTH = "800";
+AtkWinLauncher.TOPOLOGY_WIN = "oracle_sysman_topology_viewer";
+AtkWinLauncher.TOPOLOGY_PROPS = "scrollbars=0,location=0,toolbar=0,menubar=0,resizable=1,status=1";
+
+AtkWinLauncher.launchWindow = function(winName, url, title, winProperties, width, height)
+{
+    AtkWinLauncher.launchWindow(winName, url, title, winProperties, true, width, height);
+};
+
+
+AtkWinLauncher.launchWindow = function(winName, url, title, winProperties, targetWindow, width, height)
+{
+    var Win = null;
+    var launchedWindows = AtkWinLauncher.launchedWindows;
+ //commenting the below code as it causes issue if winlauncher is called from a popup
+ // var windowOpener = window.opener;
+ // if(windowOpener)
+ // {
+ //
+ //       if(!windowOpener.closed)
+ //      {
+ //        launchedWindows = windowOpener.AtkWinLauncher.launchedWindows;
+ //  }
+ //}
+
+    if(winName in launchedWindows)
+    {
+        Win = launchedWindows[winName];
+    }
+    else
+    {
+        Win = new Object();
+        Win.emWindow = null;
+        launchedWindows[winName] = Win;
+    }
+
+    if(Win.emWindow)
+    {
+        if(!Win.emWindow.closed)
+        {
+
+            AtkWinLauncher.useExistingWin(Win.emWindow, url, targetWindow);
+            return;
+        }
+    }
+
+
+    if(height === null || height === undefined || width === null || width === undefined)
+    {
+        height = screen.height - 150;
+        width = screen.width - 150;
+    }
+
+
+    var y = Math.floor((screen.availHeight - height) / 2) - (screen.height - screen.availHeight);
+    var x = Math.floor((screen.availWidth - width) / 2) - (screen.width - screen.availWidth);
+
+
+
+    var features = "width=" + width + ",height=" + height + ",left=" +x + ",screenx=" +x + ",top=" +y + ",screeny=" +y;
+    if(winProperties !== null)
+    {
+        features = features + "," + winProperties;
+    }
+    Win.emWindow = window.open(url, "", features);
+    //getting console error when popup is blocked with popup blocker
+    if(AtkWinLauncher.launchedWindows["TaskDetails"].emWindow != null)
+    {
+     setTimeout('AtkWinLauncher.launchedWindows["TaskDetails"].emWindow.focus()', 1);
+    }
+};
+
+
+AtkWinLauncher.useExistingWin  = function(emWindow, url, targetWin)
+{
+    emWindow.location = url;
+    emWindow.focus();
+    setTimeout('AtkWinLauncher.launchedWindows["TaskDetails"].emWindow.focus()', 1);
+};
+
+function changeAtkNotificationStatus(eventObj) {
+    AdfCustomEvent.queue(eventObj.getSource(),"changeAtkNotificationMesgStatus",{},true);
+   }
+
+function atkCloseWindow() {
+    window.close();
+}
+
+AtkWinLauncher.closeMobilePopup = function atkCloseMobilePopup(clientId) {
+    var popup = AdfPage.PAGE.findComponent(clientId);         
+    if(popup != null){        
+        popup.hide();
+    }
+}
+/*
+ * This method will be called when the count on the bell icon is clicked
+ */
+function handleBellCountEvent(evt) {
+          var comp = evt.getSource();
+          AdfCustomEvent.queue(comp, "BellCountEvent", {}, true);
+	  return true;
+}
+
+
+//this code will be called when user want to filter the notification tasks from notification popup
+function handleEnterEvent(evt) {
+      var _keyCode = evt.getKeyCode();
+      //check for Enter Key
+      if (_keyCode == AdfKeyStroke.ENTER_KEY ){    
+      
+          var comp = evt.getSource();
+          AdfCustomEvent.queue(comp, "EnterEvent", {fvalue:comp.getSubmittedValue()}, false);
+          evt.cancel();
+      }
+}
+      
+var atkWatchlistConveyorBelt = atkWatchlistConveyorBelt || 
+{
+}
+
+atkWatchlistConveyorBelt.initializeClient = function (parentContainerClientId, leftArrowClientId, rightArrowClientId ) {
+    var agent = AdfAgent.AGENT;
+    var parentContainer = agent.getElementById(parentContainerClientId);
+    var clientWidth = parentContainer.clientWidth;
+    atkWatchlistConveyorBelt.parentContainerClientId = parentContainerClientId;
+    atkWatchlistConveyorBelt.leftArrowClientId = leftArrowClientId;
+    atkWatchlistConveyorBelt.rightArrowClientId = rightArrowClientId;
+   // atkWatchlistConveyorBelt.loadingTextClientId = loadingTextClientId;
+    
+    atkWatchlistConveyorBelt.totalItems = AdfPage.PAGE.findComponent(parentContainerClientId).getProperty("totalItems");
+    atkWatchlistConveyorBelt.scrollLeft = parentContainer.scrollLeft;
+
+    // Register the event listeners
+    agent.addBubbleEventListener(parentContainer, "touchstart", atkWatchlistConveyorBelt.touchStartEventListener);
+    agent.addBubbleEventListener(parentContainer, "touchmove", atkWatchlistConveyorBelt.touchMoveEventListener);
+    agent.addBubbleEventListener(parentContainer, "touchend", atkWatchlistConveyorBelt.touchEndEventListener);
+        
+    // Browser re-size re-compute the visible children and the left/right arrows visibility has to change
+    // compute the current visible children client ids 
+    atkWatchlistConveyorBelt.computeVisibleChildren();
+
+    atkWatchlistConveyorBelt.showHideLeftRightArrows();
+}
+
+atkWatchlistConveyorBelt.computeVisibleChildren = function () {
+    var agent = AdfAgent.AGENT;
+    var parentContainerElement = agent.getElementById(atkWatchlistConveyorBelt.parentContainerClientId);
+    var parentContainerComponent = AdfPage.PAGE.findComponent(atkWatchlistConveyorBelt.parentContainerClientId);
+    var children = parentContainerComponent.getDescendantComponents();
+    var parentBoundingRectangle = parentContainerElement.getBoundingClientRect();
+    var rightToLeft = AdfPage.PAGE.getLocaleContext().isRightToLeft();
+
+    atkWatchlistConveyorBelt.children = [];
+    atkWatchlistConveyorBelt.visibleChildren = [];
+    atkWatchlistConveyorBelt.inVisibleChildrenLeft = [];
+    atkWatchlistConveyorBelt.inVisibleChildrenRight = [];
+
+    children.forEach(function (comp) {
+        var parent = comp.getParent().getParent();// Here we depend on the component heirarchy to get all the panelbox elements
+        if (parent.getClientId() == atkWatchlistConveyorBelt.parentContainerClientId) {
+            atkWatchlistConveyorBelt.children.push(comp.getClientId());
+            var elem = agent.getElementById(comp.getClientId());
+            var rect = elem.getBoundingClientRect();
+            atkWatchlistConveyorBelt.panelBoxWidth = rect.width;
+
+            if ((rect.left >= parentBoundingRectangle.left && rect.left <= (parentBoundingRectangle.left + parentBoundingRectangle.width)) || ((rect.left + rect.width) >= parentBoundingRectangle.left && (rect.left + rect.width) <= (parentBoundingRectangle.left + parentBoundingRectangle.width))) {
+                var entireRightVisible = (rect.left + rect.width <= parentBoundingRectangle.left + parentBoundingRectangle.width);
+                var entireLeftVisible = (rect.left >= parentBoundingRectangle.left);
+                if (!rightToLeft) {
+                    atkWatchlistConveyorBelt.visibleChildren.push( {
+                        'id' : comp.getClientId(), 
+                        'entireRightVisible' : entireRightVisible, 
+                        'entireLeftVisible' : entireLeftVisible
+                    });
+                }
+                else {
+                    // if rtl flip the previous value to next and next to previous
+                    atkWatchlistConveyorBelt.visibleChildren.push( {
+                        'id' : comp.getClientId(), 
+                        'entireRightVisible' : entireRightVisible, 
+                        'entireLeftVisible' : entireLeftVisible
+                    });
+                }
+            }
+            else {
+                if ((atkWatchlistConveyorBelt.visibleChildren.length > 0 && !rightToLeft) || (atkWatchlistConveyorBelt.visibleChildren.length <= 0 && rightToLeft)) {
+                    atkWatchlistConveyorBelt.inVisibleChildrenRight.push( {
+                        'id' : comp.getClientId(), 
+                        'entireRightVisible' : false, 
+                        'entireLeftVisible' : false
+                    });
+                }
+                else {
+                    atkWatchlistConveyorBelt.inVisibleChildrenLeft.push( {
+                        'id' : comp.getClientId(), 
+                        'entireRightVisible' : false, 
+                        'entireLeftVisible' : false
+                    });
+                }
+            }
+        }
+    });
+
+}
+
+atkWatchlistConveyorBelt.moveLeft = function (event) {
+    if (atkWatchlistConveyorBelt.fetchingItems) {
+        event.cancel();
+        return;
+    }
+    var agent = AdfAgent.AGENT;
+    var parentContainer = agent.getElementById(atkWatchlistConveyorBelt.parentContainerClientId);
+    var clientWidth = parentContainer.clientWidth;
+   
+    var lastVisibleChild = atkWatchlistConveyorBelt.visibleChildren[atkWatchlistConveyorBelt.visibleChildren.length - 1].id;
+    if (lastVisibleChild) {
+        var lastVisibleChildElem = agent.getElementById(lastVisibleChild);
+        var childBoundRect = lastVisibleChildElem.getBoundingClientRect();
+        
+        var itemsToMove = atkWatchlistConveyorBelt.visibleChildren.length - 1 ;
+        if (itemsToMove > atkWatchlistConveyorBelt.inVisibleChildrenLeft)
+           itemsToMove = atkWatchlistConveyorBelt.inVisibleChildrenLeft.length > 0 ? atkWatchlistConveyorBelt.inVisibleChildrenLeft.length : 1;
+
+        atkWatchlistConveyorBelt.animateMove(parentContainer,  "left", 
+                                             ((itemsToMove) * (childBoundRect.width + 10)));
+    }
+
+    //    // re-compute the current visible children client ids
+    //    atkWatchlistConveyorBelt.computeVisibleChildren();
+    //
+    //    // hide/show left-right arrows
+    //    atkWatchlistConveyorBelt.showHideLeftRightArrows();
+    event.cancel();
+}
+
+atkWatchlistConveyorBelt.moveRight = function (event) {
+
+    if (atkWatchlistConveyorBelt.fetchingItems) {
+        event.cancel();
+        return;
+    }
+      
+    var agent = AdfAgent.AGENT;
+    var parentContainer = agent.getElementById(atkWatchlistConveyorBelt.parentContainerClientId);
+    var clientWidth = parentContainer.clientWidth;
+    
+    var firstVisibleChild = atkWatchlistConveyorBelt.visibleChildren[0].id;
+    if (firstVisibleChild) {
+        var firstVisibleChildElem = agent.getElementById(firstVisibleChild);
+        var childBoundRect = firstVisibleChildElem.getBoundingClientRect();
+        
+        var itemsToMove = atkWatchlistConveyorBelt.visibleChildren.length - 1 ;
+        
+        if (itemsToMove > atkWatchlistConveyorBelt.inVisibleChildrenRight)
+           itemsToMove = atkWatchlistConveyorBelt.inVisibleChildrenRight.length > 0 ? atkWatchlistConveyorBelt.inVisibleChildrenRight.length : 1;
+           
+        atkWatchlistConveyorBelt.animateMove(parentContainer,   "right", 
+                                             (itemsToMove * (childBoundRect.width + 10)));
+    }
+    event.cancel();
+}
+
+atkWatchlistConveyorBelt.animateMove = function (elem, leftOrRight, scrollPosition) {
+    var scrollAnimation = setInterval(function () {
+        if ((leftOrRight == "right")) {
+            
+            elem.scrollLeft += (scrollPosition > 50 ? 50 : scrollPosition);
+            scrollPosition -= 50;
+        }
+        else {
+            elem.scrollLeft -= (scrollPosition > 50 ? 50 : scrollPosition);
+            scrollPosition -= 50;
+        }
+
+        if (scrollPosition <= 0) {
+            atkWatchlistConveyorBelt.scrollLeft = elem.scrollLeft;
+            clearInterval(scrollAnimation);
+            // re-compute the current visible children client ids
+            atkWatchlistConveyorBelt.computeVisibleChildren();
+
+            // hide/show left-right arrows
+            atkWatchlistConveyorBelt.showHideLeftRightArrows();
+            atkWatchlistConveyorBelt.fetchMoreItems();
+        }
+    },
+20);
+}
+
+atkWatchlistConveyorBelt.browserResizeListener = function (event) {
+    // Browser re-size re-compute the visible children and the left/right arrows visibility has to change
+    // re-compute the current visible children client ids
+    atkWatchlistConveyorBelt.computeVisibleChildren();
+
+    // hide/show left-right arrows
+    atkWatchlistConveyorBelt.showHideLeftRightArrows();
+    
+    atkWatchlistConveyorBelt.fetchMoreItems();
+}
+
+atkWatchlistConveyorBelt.showHideLeftRightArrows = function () {
+    var adfPage = AdfPage.PAGE;
+    var leftArrowComp = adfPage.findComponent(atkWatchlistConveyorBelt.leftArrowClientId);
+    var rightArrowComp = adfPage.findComponent(atkWatchlistConveyorBelt.rightArrowClientId);
+    var parentContainer = adfPage.findComponent(atkWatchlistConveyorBelt.parentContainerClientId);
+    var rightToLeft = AdfPage.PAGE.getLocaleContext().isRightToLeft();
+
+    if (leftArrowComp == null || rightArrowComp == null)
+        return;
+        
+    if (!rightToLeft) {
+        if (rightArrowComp.getVisible()) {
+            if ((atkWatchlistConveyorBelt.visibleChildren[atkWatchlistConveyorBelt.visibleChildren.length - 1].id == atkWatchlistConveyorBelt.children[atkWatchlistConveyorBelt.children.length - 1]) && atkWatchlistConveyorBelt.visibleChildren[atkWatchlistConveyorBelt.visibleChildren.length - 1].entireRightVisible) {
+                // hide the right arrow
+                rightArrowComp.setVisible(false);
+                atkWatchlistConveyorBelt.rightArrowHidden = true;
+
+            }
+        }
+        else {
+            var lastChildId = atkWatchlistConveyorBelt.children[atkWatchlistConveyorBelt.children.length - 1];
+            
+            if ((atkWatchlistConveyorBelt.inVisibleChildrenRight.length > 0) || (!atkWatchlistConveyorBelt.visibleChildren[atkWatchlistConveyorBelt.visibleChildren.length - 1].entireRightVisible)) {
+                rightArrowComp.setVisible(true);
+                atkWatchlistConveyorBelt.rightArrowHidden = false;
+            }
+        }
+
+        if (leftArrowComp.getVisible()) {
+            if ((atkWatchlistConveyorBelt.visibleChildren[0].id == atkWatchlistConveyorBelt.children[0]) && atkWatchlistConveyorBelt.visibleChildren[0].entireLeftVisible) {
+                // hide the right arrow
+                leftArrowComp.setVisible(false);
+                atkWatchlistConveyorBelt.leftArrowHidden = true;
+            }
+        }
+        else {
+            var firstChildId = atkWatchlistConveyorBelt.children[0];
+            
+            if ((atkWatchlistConveyorBelt.inVisibleChildrenLeft.length > 0) || (!atkWatchlistConveyorBelt.visibleChildren[0].entireLeftVisible)) {
+                leftArrowComp.setVisible(true);
+                atkWatchlistConveyorBelt.rightArrowHidden = false;
+            }
+        }
+    }
+    else {
+        if (leftArrowComp.getVisible()) {
+            if ((atkWatchlistConveyorBelt.visibleChildren[atkWatchlistConveyorBelt.visibleChildren.length - 1].id == atkWatchlistConveyorBelt.children[atkWatchlistConveyorBelt.children.length - 1]) && atkWatchlistConveyorBelt.visibleChildren[atkWatchlistConveyorBelt.visibleChildren.length - 1].entireLeftVisible) {
+                // hide the right arrow
+                leftArrowComp.setVisible(false);
+                atkWatchlistConveyorBelt.leftArrowHidden = true;
+
+            }
+        }
+        else {
+           
+            if ((atkWatchlistConveyorBelt.inVisibleChildrenRight.length > 0) || (!atkWatchlistConveyorBelt.visibleChildren[atkWatchlistConveyorBelt.visibleChildren.length - 1].entireLeftVisible)) {
+                leftArrowComp.setVisible(true);
+                atkWatchlistConveyorBelt.rightArrowHidden = false;
+            }
+        }
+
+        if (rightArrowComp.getVisible()) {
+            if ((atkWatchlistConveyorBelt.visibleChildren[0].id == atkWatchlistConveyorBelt.children[0]) && atkWatchlistConveyorBelt.visibleChildren[0].entireRightVisible) {
+                // hide the right arrow
+                rightArrowComp.setVisible(false);
+                atkWatchlistConveyorBelt.rightArrowHidden = true;
+            }
+        }
+        else {
+            
+            if ((atkWatchlistConveyorBelt.inVisibleChildrenRight.length > 0) || (!atkWatchlistConveyorBelt.visibleChildren[0].entireRightVisible)) {
+                rightArrowComp.setVisible(true);
+                atkWatchlistConveyorBelt.rightArrowHidden = false;
+            }
+        }
+    }
+}
+
+atkWatchlistConveyorBelt.touchStartEventListener = function (event) {
+    if (atkWatchlistConveyorBelt.fetchingItems) {
+        event.cancel();
+        return;
+    }
+
+    atkWatchlistConveyorBelt.startMovePageX = event.changedTouches[0].pageX;
+}
+
+atkWatchlistConveyorBelt.touchMoveEventListener = function (event) {
+    if (atkWatchlistConveyorBelt.fetchingItems) {
+        event.cancel();
+        return;
+    }
+    
+    var agent = AdfAgent.AGENT;
+    var parentContainer = agent.getElementById(atkWatchlistConveyorBelt.parentContainerClientId);
+    var currentPageX = event.changedTouches[0].pageX;
+    if (atkWatchlistConveyorBelt.startMovePageX > currentPageX)
+        parentContainer.scrollLeft = parentContainer.scrollLeft - (currentPageX - atkWatchlistConveyorBelt.startMovePageX);
+    else if (atkWatchlistConveyorBelt.startMovePageX < currentPageX)
+        parentContainer.scrollLeft = parentContainer.scrollLeft + (atkWatchlistConveyorBelt.startMovePageX - currentPageX);
+
+    atkWatchlistConveyorBelt.scrollLeft = parentContainer.scrollLeft;
+    atkWatchlistConveyorBelt.startMovePageX = currentPageX;
+}
+
+atkWatchlistConveyorBelt.touchEndEventListener = function (event) {
+    if (atkWatchlistConveyorBelt.fetchingItems) {
+        event.cancel();
+        return;
+    }
+
+    atkWatchlistConveyorBelt.startMovePageX = null;
+
+    atkWatchlistConveyorBelt.computeVisibleChildren();
+    var currentItemsOnClient = atkWatchlistConveyorBelt.children.length;
+    atkWatchlistConveyorBelt.fetchMoreItems();
+}
+
+atkWatchlistConveyorBelt.fetchMoreItems = function (leftOrRight) {
+    var totalItems = atkWatchlistConveyorBelt.totalItems;
+    var currentItemsOnClient = atkWatchlistConveyorBelt.children.length;
+    var rightToLeft = AdfPage.PAGE.getLocaleContext().isRightToLeft();
+    
+    if (currentItemsOnClient >= totalItems  || 
+        ((!rightToLeft && atkWatchlistConveyorBelt.inVisibleChildrenRight.length > (2 * atkWatchlistConveyorBelt.visibleChildren.length) ) || 
+        (rightToLeft && atkWatchlistConveyorBelt.inVisibleChildrenLeft.length < (2*atkWatchlistConveyorBelt.visibleChildren.length))))
+        return;
+
+    var adfPage = AdfPage.PAGE;
+   //var loadingTextComp = adfPage.findComponent(atkWatchlistConveyorBelt.loadingTextClientId);
+   // loadingTextComp.setVisible(true);
+    atkWatchlistConveyorBelt.fetchingItems = true;
+    
+    var parentContainerComponent = AdfPage.PAGE.findComponent(atkWatchlistConveyorBelt.parentContainerClientId);
+    var parentElem = AdfAgent.AGENT.getElementById(atkWatchlistConveyorBelt.parentContainerClientId);
+    AdfCustomEvent.queue(parentContainerComponent, "atkFetchItems", 
+    {
+        "leftInvisibleItems" : atkWatchlistConveyorBelt.inVisibleChildrenLeft.length, 
+        "rightInvisibleItems" : atkWatchlistConveyorBelt.inVisibleChildrenRight.length, 
+        "visibleItems" : atkWatchlistConveyorBelt.visibleChildren.length, 
+        "leftOrRight" : leftOrRight, 
+        "scrollLeft" : parentElem.scrollLeft
+    }, false);
+
+}
+
+atkWatchlistConveyorBelt.setScrollPosition = function (incrementCount, currentScrollPosition) {
+    var agent = AdfAgent.AGENT;
+    var parentContainer = agent.getElementById(atkWatchlistConveyorBelt.parentContainerClientId);
+    var rightToLeft = AdfPage.PAGE.getLocaleContext().isRightToLeft();
+    
+    if (rightToLeft)
+          parentContainer.scrollLeft = currentScrollPosition + (incrementCount * (atkWatchlistConveyorBelt.panelBoxWidth + 10));
+       else 
+          parentContainer.scrollLeft = currentScrollPosition;
+    
+    atkWatchlistConveyorBelt.computeVisibleChildren();
+    
+    var adfPage = AdfPage.PAGE;
+//   var loadingTextComp = adfPage.findComponent(atkWatchlistConveyorBelt.loadingTextClientId);
+//    loadingTextComp.setVisible(false);
+    atkWatchlistConveyorBelt.fetchingItems = false;
+    
+    agent.addBubbleEventListener(parentContainer, "touchstart", atkWatchlistConveyorBelt.touchStartEventListener);
+    agent.addBubbleEventListener(parentContainer, "touchmove", atkWatchlistConveyorBelt.touchMoveEventListener);
+    agent.addBubbleEventListener(parentContainer, "touchend", atkWatchlistConveyorBelt.touchEndEventListener);
+    atkWatchlistConveyorBelt.scrollLeft = parentContainer.scrollLeft;
+}  
+
+atkWatchlistConveyorBelt.setScrollOnHide = function (computeChildren) {
+    if (computeChildren) {
+        if (atkWatchlistConveyorBelt.scrollLeft != null) {
+            var agent = AdfAgent.AGENT;
+            var parentContainer = agent.getElementById(atkWatchlistConveyorBelt.parentContainerClientId);
+            parentContainer.scrollLeft = atkWatchlistConveyorBelt.scrollLeft;
+
+            atkWatchlistConveyorBelt.computeVisibleChildren();
+            atkWatchlistConveyorBelt.showHideLeftRightArrows();
+            
+            //bug Bug 27471887 - THINGS TO FINISH SCROLL IS NOT WORKING IN MOBILE AFTER CLICKING ON TASK TITLE 
+             agent.addBubbleEventListener(parentContainer, "touchstart", atkWatchlistConveyorBelt.touchStartEventListener);
+             agent.addBubbleEventListener(parentContainer, "touchmove", atkWatchlistConveyorBelt.touchMoveEventListener);
+             agent.addBubbleEventListener(parentContainer, "touchend", atkWatchlistConveyorBelt.touchEndEventListener);
+        }
+    }
+   
+   
+   
+}
+
+atkWatchlistConveyorBelt.closeWatchListItem = function (event) {
+    if (atkWatchlistConveyorBelt.fetchingItems) {
+        event.cancel();
+        return;
+    }
+    
+    var eventSource = event.getSource();
+    var parent = eventSource.getParent();
+    //Walk-up to get the panelBox item
+    
+    while (parent && !parent.getComponentType() == "oracle.adf.RichPanelBox"){
+        parent = parent.getParent();
+    }
+    
+    var hiddenComponentClientId = parent.getClientId();
+    
+    var agent = AdfAgent.AGENT;
+    var cardElement = agent.getElementById(hiddenComponentClientId);
+    cardElement.className = "atk-watchlist-hideDiv";
+    cardElement.style.width = "0px";
+    var spacerElement = cardElement.parentElement.nextElementSibling;
+    spacerElement.className = "atk-watchlist-hideDiv";
+    spacerElement.style.width = "0px";
+
+
+    cardElement.addEventListener("transitionend", function (event) {
+        var spacerElement = cardElement.parentElement.nextElementSibling;
+        cardElement.parentElement.removeChild(cardElement);// really delete
+        if (spacerElement)
+            spacerElement.parentElement.removeChild(spacerElement);
+        
+        // re-compute the current visible children client ids
+        atkWatchlistConveyorBelt.computeVisibleChildren();
+
+        // hide/show left-right arrows based on current state
+        atkWatchlistConveyorBelt.showHideLeftRightArrows();
+        atkWatchlistConveyorBelt.totalItems--;
+    },
+    false);
+    
+
+}
+    

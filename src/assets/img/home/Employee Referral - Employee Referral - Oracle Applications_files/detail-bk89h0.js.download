@@ -1,0 +1,81 @@
+AdfUIComponents.createComponentClass("AdfRichShowDetail", {componentType:"oracle.adf.RichShowDetail", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"persist", type:"Array"}, {name:"dontPersist", type:"Array"}, {name:"contentDelivery", type:"String", "default":"lazyUncached"}, {name:"disclosedText", type:"String"}, {name:"undisclosedText", 
+type:"String"}], superclass:AdfUIShowDetail});
+
+AdfRichUIPeer.createPeerClass(AdfDhtmlShowDisclosurePeer, "AdfDhtmlShowDetailPeer");
+AdfDhtmlShowDetailPeer.InitSubclass = function() {
+  AdfDhtmlShowDetailPeer._SHOW_DETAIL_CHILD_CONTAINER_STYLE_CLASS = "af|showDetail::child-container";
+  AdfDhtmlTogglePeer.Config(this, {"ltrToggledIconName":"af|showDetail::disclosed-icon", "ltrUntoggledIconName":"af|showDetail::undisclosed-icon", "rtlToggledIconName":"af|showDetail::disclosed-icon:rtl", "rtlUntoggledIconName":"af|showDetail::undisclosed-icon:rtl"})
+};
+AdfDhtmlShowDetailPeer.prototype.HandleClientSideToggle = function(disclosed) {
+  if(AdfDhtmlShowDetailPeer.superclass.HandleClientSideToggle.call(this, disclosed)) {
+    return this._handleClientSideDisclosure(disclosed)
+  }else {
+    return false
+  }
+};
+AdfDhtmlShowDetailPeer.prototype.GetTitle = function() {
+  var comp = this.getComponent();
+  var text;
+  if(comp.getDisclosed()) {
+    text = comp.getProperty("disclosedText")
+  }else {
+    text = comp.getProperty("undisclosedText");
+    if(text == null) {
+      text = comp.getProperty("disclosedText")
+    }
+  }
+  return text
+};
+AdfDhtmlShowDetailPeer.prototype.ApplyTitle = function(titleText) {
+  AdfDhtmlShowDetailPeer.superclass.ApplyTitle.call(this, titleText);
+  var newHeaderText = this.GetTitle();
+  if(newHeaderText != null) {
+    var laf = AdfPage.PAGE.getLookAndFeel();
+    var headerTextStyleClass = laf.getSkinProperty(AdfDhtmlShowDetailPeer._SHOW_DETAIL_HEADER_TEXT_STYLE_CLASS);
+    var rootElem = this.getDomElement();
+    var elem = AdfDomUtils.getFirstElementMatch(rootElem, true, function(childElement) {
+      return AdfDomUtils.containsCSSClassName(childElement, headerTextStyleClass) ? childElement : null
+    });
+    if(elem != null) {
+      AdfDomUtils.removeAllNodes(elem);
+      elem.appendChild(document.createTextNode(newHeaderText))
+    }
+  }
+};
+AdfDhtmlShowDetailPeer.prototype.EventPropagatesToServer = function(isExpanded) {
+  var value = AdfDhtmlShowDetailPeer.superclass.EventPropagatesToServer.call(this);
+  if(value == false) {
+    var component = this.getComponent();
+    if("lazy" == component.getPropertyValue("contentDelivery")) {
+      if(this._getContentDomElement() == null) {
+        value = true
+      }
+    }
+    if(value == false && isExpanded == false) {
+      value = AdfPage.PAGE.getDirtyStateService().hasDirtyData(component)
+    }
+  }
+  return value
+};
+AdfDhtmlShowDetailPeer.prototype.ComponentDisclosedChanged = function(component, domElement, newValue, oldValue) {
+  if(this._getContentDomElement()) {
+    return AdfDhtmlShowDetailPeer.superclass.ComponentDisclosedChanged.call(this, component, domElement, newValue, oldValue)
+  }else {
+    return false
+  }
+};
+AdfDhtmlShowDetailPeer.prototype._getContentDomElement = function() {
+  var rootElem = this.getDomElement();
+  var styleClass = AdfPage.PAGE.getLookAndFeel().getStyleClass(AdfDhtmlShowDetailPeer._SHOW_DETAIL_CHILD_CONTAINER_STYLE_CLASS);
+  return AdfDomUtils.getFirstElementMatch(rootElem, true, AdfDomUtils.containsCSSClassName, styleClass)
+};
+AdfDhtmlShowDetailPeer.prototype._handleClientSideDisclosure = function(disclosed) {
+  var contentDom = this._getContentDomElement();
+  if(contentDom) {
+    var newDisplay = disclosed ? "" : "none";
+    contentDom.style.display = newDisplay;
+    return true
+  }else {
+    return false
+  }
+};

@@ -1,0 +1,189 @@
+function AdfUserInactivityTimeoutHelper(userInactivityTimeout) {
+  this.Init(userInactivityTimeout)
+}
+AdfObject.createSubclass(AdfUserInactivityTimeoutHelper);
+AdfUserInactivityTimeoutHelper.prototype.registerPollComponent = function(component) {
+  AdfAssert.assertObject(component);
+  var clientId = component.getClientId();
+  this._componentIDsArray.push(clientId);
+  var componentTimeout = component.getTimeout();
+  if(this._maxComponentTimeoutInterval == null) {
+    this._maxComponentTimeoutInterval = componentTimeout
+  }else {
+    if(componentTimeout == -1 || this._maxComponentTimeoutInterval != -1 && componentTimeout > this._maxComponentTimeoutInterval) {
+      this._maxComponentTimeoutInterval = componentTimeout
+    }
+  }
+};
+AdfUserInactivityTimeoutHelper.prototype.unregisterPollComponent = function(component) {
+  AdfAssert.assertObject(component);
+  var clientId = component.getClientId();
+  AdfCollections.removeArrayValue(this._componentIDsArray, clientId);
+  var interval = this._defaultTimeoutInterval;
+  this._globalTimeoutInterval = this._calculatePollingTimeoutInterval(interval)
+};
+AdfUserInactivityTimeoutHelper.prototype.hasTimedOut = function() {
+  return this._hasTimedOut
+};
+AdfUserInactivityTimeoutHelper.prototype.isTimeoutEnabled = function() {
+  return this._globalTimeoutInterval != -1
+};
+AdfUserInactivityTimeoutHelper.prototype.initializeTimeout = function(interval) {
+  AdfAssert.assertNumberOrNull(interval);
+  this._defaultTimeoutInterval = interval;
+  var oldGlobalTimeoutInterval = this._globalTimeoutInterval;
+  this._globalTimeoutInterval = this._maxComponentTimeoutInterval ? this._maxComponentTimeoutInterval : interval;
+  if(this._globalTimeoutInterval != oldGlobalTimeoutInterval) {
+    this._rescheduleOrScheduleTimerIfNeeded()
+  }
+};
+AdfUserInactivityTimeoutHelper.InitClass = function() {
+};
+AdfUserInactivityTimeoutHelper.prototype.Init = function() {
+  AdfUserInactivityTimeoutHelper.superclass.Init.call(this);
+  this._componentIDsArray = new Array;
+  this._defaultTimeoutInterval = null;
+  this._globalTimeoutInterval = -1;
+  this._maxComponentTimeoutInterval = null;
+  this._hasTimedOut = false
+};
+AdfUserInactivityTimeoutHelper.prototype._calculatePollingTimeoutInterval = function(interval) {
+  var timeoutInterval = interval;
+  var componentIds = this._componentIDsArray;
+  var page = AdfPage.PAGE;
+  this._maxComponentTimeoutInterval = null;
+  for(var i = 0;i < componentIds.length;i++) {
+    var component = page.findComponent(componentIds[i]);
+    if(component) {
+      var tmpTimeoutValue = component.getTimeout();
+      if(tmpTimeoutValue == -1) {
+        this._maxComponentTimeoutInterval = tmpTimeoutValue;
+        break
+      }
+      if(this._maxComponentTimeoutInterval == null) {
+        this._maxComponentTimeoutInterval = tmpTimeoutValue
+      }else {
+        if(tmpTimeoutValue > this._maxComponentTimeoutInterval) {
+          this._maxComponentTimeoutInterval = tmpTimeoutValue
+        }
+      }
+    }
+  }
+  if(this._maxComponentTimeoutInterval != null) {
+    timeoutInterval = this._maxComponentTimeoutInterval
+  }
+  return timeoutInterval
+};
+AdfUserInactivityTimeoutHelper.prototype._forceComponentStop = function() {
+  this._hasTimedOut = true;
+  this._forcePollingComponentStop();
+  this._forceADSStop();
+  var page = AdfPage.PAGE;
+  if(this._timeoutTimer != null) {
+    var currentTimer = this._timeoutTimer;
+    page.cancelTimer(currentTimer);
+    this._timeoutTimer = null
+  }
+};
+AdfUserInactivityTimeoutHelper.prototype._forcePollingComponentStop = function() {
+  var page = AdfPage.PAGE;
+  var componentsUpdatedByPollEvent = page.getComponentIdsUpdatedByPollEvent();
+  if(componentsUpdatedByPollEvent != null) {
+    page.scheduleTimer(this, this._applyPollTimeoutStyle, null, 500)
+  }
+};
+AdfUserInactivityTimeoutHelper.prototype._forceADSStop = function() {
+  var page = AdfPage.PAGE;
+  if(page.isActiveDataSupported()) {
+    page.__stopADS();
+    var sessionTimeoutHelper = page.__getSessionTimeoutHelper();
+    if(sessionTimeoutHelper) {
+      sessionTimeoutHelper.__cancelSessionTimeoutTimer();
+      sessionTimeoutHelper.__startSessionTimeoutTimer()
+    }
+  }
+};
+AdfUserInactivityTimeoutHelper.prototype._applyPollTimeoutStyle = function() {
+  var updates = AdfPage.PAGE.getComponentIdsUpdatedByPollEvent();
+  var timeoutLayers = new Array;
+  var agent = AdfAgent.AGENT;
+  for(var i = 0;i < updates.length;i++) {
+    var componentRootDomElement = agent.getElementById(updates[i]);
+    if(componentRootDomElement) {
+      AdfDomUtils.addCSSClassName(componentRootDomElement, "p_AFNoUpdate");
+      var layer = this._createPollingTimeoutLayerElement(componentRootDomElement);
+      timeoutLayers.push(layer);
+      componentRootDomElement.parentNode.insertBefore(layer, componentRootDomElement)
+    }
+  }
+  this._timeoutLayers = timeoutLayers
+};
+AdfUserInactivityTimeoutHelper.prototype._createPollingTimeoutLayerElement = function(element) {
+  AdfAssert.assertDomElement(element);
+  var agent = AdfAgent.AGENT;
+  var domDocument = AdfPage.PAGE.getDomDocument();
+  var el = domDocument.createElement("div");
+  el.className = "p_AFNoUpdateBadge";
+  var style = el.style;
+  var pos = AdfDomUtils.getRelativePosition(element);
+  style.top = pos.y + "px";
+  style.left = pos.x + "px";
+  style.width = element.offsetWidth + "px";
+  style.height = element.offsetHeight + "px";
+  style.position = "absolute";
+  style.visibility = "visible";
+  var computedStyle = agent.getComputedStyle(element);
+  if(computedStyle.zIndex == "auto") {
+    style.zIndex = 1
+  }else {
+    style.zIndex = computedStyle.zIndex + 1
+  }
+  return el
+};
+AdfUserInactivityTimeoutHelper.prototype._removePollingTimeoutLayer = function() {
+  var updates = AdfPage.PAGE.getComponentIdsUpdatedByPollEvent();
+  var layers = this._timeoutLayers;
+  if(!layers || !layers.length) {
+    return
+  }
+  for(var i = 0;i < layers.length;i++) {
+    var layer = layers.pop();
+    layer.parentNode.removeChild(layer)
+  }
+  var agent = AdfAgent.AGENT;
+  for(var j = 0;j < updates.length;j++) {
+    var componentRootDomElement = agent.getElementById(updates.pop());
+    if(componentRootDomElement) {
+      AdfDomUtils.removeCSSClassName(componentRootDomElement, "p_AFNoUpdate")
+    }
+  }
+};
+AdfUserInactivityTimeoutHelper.prototype.__resetTimeoutHandler = function(event) {
+  if(this._globalTimeoutInterval == -1 || event.type == "mouseover" || event.type == "mouseout" || event.type == "blur" || event.type == "focus") {
+    return
+  }
+  var sessionTimeoutHelper = AdfPage.PAGE.__getSessionTimeoutHelper();
+  var isSessionTimeoutDialogOpen = sessionTimeoutHelper && sessionTimeoutHelper.getTimeoutWindowState() == AdfSessionTimeoutHelper.TimeoutWindowStates.LAUNCHED;
+  if(!isSessionTimeoutDialogOpen) {
+    this._removePollingTimeoutLayer();
+    this._rescheduleOrScheduleTimerIfNeeded()
+  }
+};
+AdfUserInactivityTimeoutHelper.prototype._rescheduleOrScheduleTimerIfNeeded = function() {
+  var page = AdfPage.PAGE;
+  if(page.isActiveDataSupported()) {
+    var sessionTimeoutHelper = page.__getSessionTimeoutHelper();
+    if(sessionTimeoutHelper) {
+      sessionTimeoutHelper.__cancelSessionTimeoutTimer()
+    }
+  }
+  if(this._timeoutTimer != null) {
+    var currentTimer = this._timeoutTimer;
+    page.cancelTimer(currentTimer)
+  }
+  this._timeoutTimer = null;
+  if(this._globalTimeoutInterval && this._globalTimeoutInterval != -1) {
+    this._timeoutTimer = page.scheduleTimer(this, this._forceComponentStop, null, this._globalTimeoutInterval)
+  }
+  this._hasTimedOut = false
+};

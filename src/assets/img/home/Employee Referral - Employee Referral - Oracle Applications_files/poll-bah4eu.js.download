@@ -1,0 +1,59 @@
+AdfUIComponents.createComponentClass("AdfUIPoll", {componentType:"org.apache.myfaces.trinidad.Poll", propertyKeys:[{name:"immediate", type:"Boolean", "default":false, secured:true}, {name:"pollListener", type:"Object", secured:true}], eventNames:["poll"]});
+
+AdfUIComponents.createComponentClass("AdfRichPoll", {componentType:"oracle.adf.RichPoll", propertyKeys:[{name:"interval", type:"Number", "default":5E3}, {name:"timeout", type:"Number", "default":6E5}], superclass:AdfUIPoll});
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlPollPeer");
+AdfDhtmlPollPeer.ASYNCHRONOUS_UPDATES_ON_DEMAND = "onDemand";
+AdfDhtmlPollPeer.COMPONENT_QUEUE = [];
+AdfDhtmlPollPeer.InitSubclass = function() {
+  this._INTERVAL_ID = "_afrInterval";
+  AdfRichUIPeer.addComponentPropertyChanges(this, AdfRichPoll.INTERVAL)
+};
+AdfDhtmlPollPeer.prototype.initialize = function(component) {
+  AdfDhtmlPollPeer.superclass.initialize.call(this, component);
+  AdfDhtmlPollPeer._setInterval(component);
+  var helper = AdfPage.PAGE.__getUserInactivityTimeoutHelper();
+  helper.registerPollComponent(component)
+};
+AdfDhtmlPollPeer._clearInterval = function(component) {
+  var intervalId = component[AdfDhtmlPollPeer._INTERVAL_ID];
+  if(intervalId) {
+    this[AdfDhtmlPollPeer._INTERVAL_ID] = undefined;
+    window.clearInterval(intervalId)
+  }
+};
+AdfDhtmlPollPeer._setInterval = function(component) {
+  var interval = component.getInterval();
+  if(interval >= 0) {
+    var callback = component.createCallback(this._queuePoll);
+    var intervalId = window.setInterval(callback, interval);
+    component[AdfDhtmlPollPeer._INTERVAL_ID] = intervalId
+  }
+};
+AdfDhtmlPollPeer.prototype.ComponentIntervalChanged = function(component, domElement, newValue, oldValue) {
+  AdfDhtmlPollPeer._clearInterval(component);
+  AdfDhtmlPollPeer._setInterval(component);
+  return true
+};
+AdfDhtmlPollPeer.prototype.ComponentRemoved = function(component) {
+  AdfDhtmlPollPeer._clearInterval(component);
+  var helper = AdfPage.PAGE.__getUserInactivityTimeoutHelper();
+  helper.unregisterPollComponent(component);
+  AdfDhtmlPollPeer.superclass.ComponentRemoved.call(this, component)
+};
+AdfDhtmlPollPeer._queuePoll = function() {
+  var helper = AdfPage.PAGE.__getUserInactivityTimeoutHelper();
+  if(!helper.hasTimedOut()) {
+    if(AdfPage.PAGE.getAsynchronousUpdatesState() == AdfDhtmlPollPeer.ASYNCHRONOUS_UPDATES_ON_DEMAND) {
+      AdfDhtmlPollPeer._cacheComponent(this)
+    }else {
+      AdfPollEvent.queue(this)
+    }
+  }
+};
+AdfDhtmlPollPeer._cacheComponent = function(component) {
+  var clientId = component.getClientId();
+  if(AdfCollections.indexOf(AdfDhtmlPollPeer.COMPONENT_QUEUE, clientId) == -1) {
+    AdfDhtmlPollPeer.COMPONENT_QUEUE.push(clientId)
+  }
+};

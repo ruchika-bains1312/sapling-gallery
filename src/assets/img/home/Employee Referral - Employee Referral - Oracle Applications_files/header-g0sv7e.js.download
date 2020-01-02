@@ -1,0 +1,242 @@
+AdfUIComponents.createComponentClass("AdfRichPanelHeader", {componentType:"oracle.adf.RichPanelHeader", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"helpTopicId", type:"String"}, {name:"text", type:"String"}, {name:"icon", type:"String"}, {name:"type", type:"String", "default":"default"}, {name:"contentStyle", type:"String"}, 
+{name:"messageType", type:"String", "default":"none"}, {name:"size", type:"Number", "default":-1}, {name:"headerLevel", type:"Number", "default":-1}, {name:"helpType", type:"String", "default":"inline"}], superclass:AdfUIPanel});
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlPanelHeaderPeer", false);
+AdfDhtmlPanelHeaderPeer.InitSubclass = function() {
+  AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.CLICK_EVENT_TYPE, AdfDialogEvent.EVENT_TYPE);
+  this._DYNAMIC_HELP_POPUP = "_afrHlpPop";
+  this._DYNAMIC_HELP_DIALOG = "_afrHlpCnt";
+  this._TITLE_TEXT_SUBID = "_afrTtxt";
+  this._STRETCH_CELL_SUBID = "_afrStr";
+  this._MINIMUM_TITLE_TEXT_WIDTH = 0;
+  this._HEADER_TITLE_TABLE_EXPANDO = "data-afr-hdr-tbl"
+};
+AdfDhtmlPanelHeaderPeer.prototype.Init = function(component) {
+  AdfDhtmlPanelHeaderPeer.superclass.Init.call(this, component);
+  this._stretchedOnLastResize = true
+};
+AdfDhtmlPanelHeaderPeer.prototype.needsResizeNotify = function(component) {
+  return true
+};
+AdfDhtmlPanelHeaderPeer.prototype.ComponentRemoved = function(component) {
+  delete this._stretchedOnLastResize;
+  delete this._minimumTitleWidth;
+  delete this._preferredTitleTextWidth;
+  AdfDhtmlPanelHeaderPeer.superclass.ComponentRemoved.call(this, component)
+};
+AdfDhtmlPanelHeaderPeer.prototype.HandleComponentClick = function(componentEvent) {
+  var component = this.getComponent();
+  var clientId = component.getClientId();
+  var linkId = AdfRichUIPeer.CreateSubId(clientId, "_afrHlpLnk");
+  var agent = AdfAgent.AGENT, nativeEvent = componentEvent.getNativeEvent();
+  var evtTarget = agent.getEventTarget(nativeEvent);
+  evtTarget = evtTarget.tagName != "A" ? evtTarget.parentNode : evtTarget;
+  if(componentEvent.isLeftButtonPressed() && evtTarget.id == linkId) {
+    var containerId = AdfRichUIPeer.CreateSubId(clientId, "_afrHlpCtr");
+    var containerNode = agent.getElementById(containerId);
+    if(containerNode) {
+      var contentNode = containerNode.firstChild;
+      while(contentNode && contentNode.nodeType != 1) {
+        contentNode = contentNode.nextSibling
+      }
+      if(contentNode != null) {
+        var popupHints = {};
+        popupHints[AdfRichPopup.HINT_ALIGN] = AdfRichPopup.ALIGN_AFTER_START;
+        popupHints[AdfRichPopup.HINT_ALIGN_ID] = linkId;
+        this.showPopup(component, contentNode, popupHints, AdfDhtmlPanelHeaderPeer._DYNAMIC_HELP_POPUP)
+      }
+    }
+    agent.preventDefault(nativeEvent);
+    return true
+  }
+};
+AdfDhtmlPanelHeaderPeer.prototype.HandleComponentDialog = function(componentEvent) {
+  var component = this.getComponent();
+  var clientId = component.getClientId();
+  var dialogId = AdfRichUIPeer.CreateSubId(clientId, AdfDhtmlPanelHeaderPeer._DYNAMIC_HELP_DIALOG);
+  if(dialogId != componentEvent.getSource().getClientId()) {
+    return
+  }
+  componentEvent.cancel();
+  this.hidePopup(component, AdfDhtmlPanelHeaderPeer._DYNAMIC_HELP_POPUP)
+};
+AdfDhtmlPanelHeaderPeer.prototype.PopupClosed = function(component, contentDom, popupId) {
+  if(AdfDhtmlPanelHeaderPeer._DYNAMIC_HELP_POPUP == popupId) {
+    AdfDhtmlPanelHeaderPeer.superclass.PopupClosed.call(this, component, contentDom);
+    var clientId = component.getClientId();
+    var containerId = AdfRichUIPeer.CreateSubId(clientId, "_afrHlpCtr");
+    var containerNode = AdfAgent.AGENT.getElementById(containerId);
+    if(containerNode) {
+      containerNode.appendChild(contentDom)
+    }
+  }
+};
+AdfDhtmlPanelHeaderPeer.prototype.ResizeNotify = function(oldWidth, oldHeight, newWidth, newHeight) {
+  var minimumTitleWidth = this._minimumTitleWidth;
+  if(this._minimumTitleWidth == null) {
+    minimumTitleWidth = this._calculateMinimumTitleWidth()
+  }
+  if(newWidth >= minimumTitleWidth) {
+    this._stretchTitle()
+  }else {
+    var shrinkAmount = minimumTitleWidth - newWidth;
+    this._truncateTitle(shrinkAmount)
+  }
+};
+AdfDhtmlPanelHeaderPeer.prototype._calculateMinimumTitleWidth = function() {
+  var agent = AdfAgent.AGENT;
+  var rootElement = this.getDomElement();
+  var minimumTitleWidth = 0;
+  var cssLengthAsInt = AdfAgent.getCSSLengthAsInt;
+  var rootStyle = agent.getComputedStyle(rootElement);
+  var rootPadding = cssLengthAsInt(rootStyle.paddingLeft) + cssLengthAsInt(rootStyle.paddingRight);
+  minimumTitleWidth += rootPadding;
+  var firstTable = AdfDomUtils.getFirstDescendentElement(rootElement, "table");
+  var firstTableRow = AdfDomUtils.getFirstDescendentElement(firstTable, "tr");
+  var firstTableChildren = AdfDomUtils.getChildElements(firstTableRow);
+  var tableExpando = firstTable.getAttribute(AdfDhtmlPanelHeaderPeer._HEADER_TITLE_TABLE_EXPANDO);
+  if(firstTableChildren.length == 3 && tableExpando) {
+    var wrapped = true
+  }
+  var titleContainer;
+  var titleMainTable;
+  if(wrapped) {
+    var titleTable = firstTable;
+    var titleTableRow = AdfDomUtils.getFirstDescendentElement(titleTable, "tr");
+    if(titleTableRow == null) {
+      return minimumTitleWidth
+    }
+    var titleChildren = AdfDomUtils.getChildElements(titleTableRow);
+    minimumTitleWidth += titleChildren[0].offsetWidth;
+    minimumTitleWidth += titleChildren[2].offsetWidth;
+    titleContainer = titleChildren[1];
+    titleMainTable = AdfDomUtils.getFirstDescendentElement(titleChildren[1], "table")
+  }else {
+    titleContainer = firstTable;
+    titleMainTable = titleContainer
+  }
+  var titleMiddleStyle = agent.getComputedStyle(titleContainer);
+  var titleMiddlePadding = cssLengthAsInt(titleMiddleStyle.paddingLeft) + cssLengthAsInt(titleMiddleStyle.paddingRight);
+  minimumTitleWidth += titleMiddlePadding;
+  var titleTextElement = this._getTitleTextElement();
+  var headerElement = AdfDomUtils.getFirstChildElement(titleTextElement);
+  headerElement.style.whiteSpace = "nowrap";
+  var titlePrefWidth = Math.ceil(headerElement.getBoundingClientRect().width);
+  headerElement.style.whiteSpace = "";
+  this._preferredTitleTextWidth = titlePrefWidth;
+  minimumTitleWidth += titlePrefWidth;
+  titleTextElement.style.width = titlePrefWidth + "px";
+  titleTextElement.style.maxWidth = titlePrefWidth + "px";
+  var ff2 = agent.getPlatform() == AdfAgent.GECKO_PLATFORM && agent.getVersion() == 1.8;
+  if(ff2) {
+    titleTextElement.style.overflow = "hidden"
+  }
+  var titleMainRow = AdfDomUtils.getFirstDescendentElement(titleMainTable, "tr");
+  var titleMainChildren = AdfDomUtils.getChildElements(titleMainRow);
+  var id = rootElement.getAttribute("id");
+  var titleTextId = AdfRichUIPeer.CreateSubId(id, AdfDhtmlPanelHeaderPeer._TITLE_TEXT_SUBID);
+  var titleStetchId = AdfRichUIPeer.CreateSubId(id, AdfDhtmlPanelHeaderPeer._STRETCH_CELL_SUBID);
+  var childrenLength = titleMainChildren.length;
+  var child, childId;
+  for(var i = 0;i < childrenLength;i++) {
+    child = titleMainChildren[i];
+    childId = child.getAttribute("id");
+    if(titleTextId != childId && titleStetchId != childId) {
+      minimumTitleWidth += child.offsetWidth
+    }
+  }
+  this._minimumTitleWidth = minimumTitleWidth;
+  return minimumTitleWidth
+};
+AdfDhtmlPanelHeaderPeer.prototype._truncateTitle = function(shrinkAmount) {
+  var desiredTitleTextWidth = this._preferredTitleTextWidth - shrinkAmount;
+  var minimumTitleTextWidth = AdfDhtmlPanelHeaderPeer._MINIMUM_TITLE_TEXT_WIDTH;
+  var newTitleTextWidth = desiredTitleTextWidth < minimumTitleTextWidth ? minimumTitleTextWidth : desiredTitleTextWidth;
+  var titleTextElement = this._getTitleTextElement();
+  titleTextElement.style.width = newTitleTextWidth + "px";
+  titleTextElement.style.maxWidth = newTitleTextWidth + "px";
+  this._stretchedOnLastResize = false
+};
+AdfDhtmlPanelHeaderPeer.prototype._stretchTitle = function() {
+  if(this._stretchedOnLastResize) {
+    return
+  }
+  var titleTextElement = this._getTitleTextElement();
+  var preferredTitleTextWidth = this._preferredTitleTextWidth;
+  titleTextElement.style.width = preferredTitleTextWidth + "px";
+  titleTextElement.style.maxWidth = preferredTitleTextWidth + "px";
+  this._stretchedOnLastResize = true
+};
+AdfDhtmlPanelHeaderPeer.prototype._getTitleTextElement = function() {
+  var rootElement = this.getDomElement();
+  var id = rootElement.getAttribute("id");
+  var titleTextId = AdfRichUIPeer.CreateSubId(id, AdfDhtmlPanelHeaderPeer._TITLE_TEXT_SUBID);
+  var textTdParent = AdfAgent.AGENT.getElementById(titleTextId);
+  return AdfDomUtils.getFirstChildElement(textTdParent)
+};
+AdfDhtmlPanelHeaderPeer._PANEL_HEADER_TITLE_TABLE_CLASS = "af|panelHeader::title-table";
+
+AdfUIComponents.createComponentClass("AdfRichShowDetailHeader", {componentType:"oracle.adf.RichShowDetailHeader", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"helpTopicId", type:"String"}, {name:"text", type:"String"}, {name:"icon", type:"String"}, {name:"type", type:"String", "default":"default"}, {name:"contentStyle", 
+type:"String"}, {name:"messageType", type:"String", "default":"none"}, {name:"size", type:"Number", "default":-1}, {name:"headerLevel", type:"Number", "default":-1}, {name:"persist", type:"Array"}, {name:"dontPersist", type:"Array"}, {name:"showMaximize", type:"String", "default":"auto"}, "maximizeListener", {name:"maximized", type:"Boolean", "default":false}, {name:"contentDelivery", type:"String", "default":"lazyUncached"}, {name:"helpType", type:"String", "default":"inline"}], superclass:AdfUIShowDetail});
+
+AdfRichUIPeer.createPeerClass(AdfDhtmlPanelHeaderPeer, "AdfDhtmlShowDetailHeaderPeer", false);
+AdfDhtmlShowDetailHeaderPeer._INNER_SD_PEER = AdfRichUIPeer.createInnerPeerClassWithSubId(AdfDhtmlShowDisclosurePeer, "InnerSDHShowDetailPeer", "_afrDscl");
+InnerSDHShowDetailPeer.InitSubclass = function() {
+  AdfDhtmlTogglePeer.Config(this, {toggledStyleClass:"af|showDetailHeader::disclosed-icon-style", untoggledStyleClass:"af|showDetailHeader::undisclosed-icon-style"})
+};
+InnerSDHShowDetailPeer.prototype.HandleClientSideToggle = function(disclosed) {
+  if(InnerSDHShowDetailPeer.superclass.HandleClientSideToggle.call(this, disclosed)) {
+    return this.outerThis.__handleClientSideDisclosure(disclosed)
+  }else {
+    return false
+  }
+};
+AdfDhtmlShowDetailHeaderPeer.prototype.Init = function(component) {
+  AdfDhtmlShowDetailHeaderPeer.superclass.Init.call(this, component);
+  this._disclosurePeer = new AdfDhtmlShowDetailHeaderPeer._INNER_SD_PEER(component, this);
+  var propertyKey = component.getPropertyKeys()["disclosed"];
+  if(propertyKey != null && propertyKey[AdfUIComponent.PROPERTY_DISCONNECTED]) {
+    var newPropertykey = AdfCollections.copyInto({}, propertyKey);
+    delete newPropertykey[AdfUIComponent.PROPERTY_DISCONNECTED];
+    component.getPropertyKeys()["disclosed"] = newPropertykey
+  }
+};
+AdfDhtmlShowDetailHeaderPeer.prototype.initialize = function(component) {
+  AdfDhtmlShowDetailHeaderPeer.superclass.initialize.call(this, component);
+  this._disclosurePeer.initialize(component)
+};
+AdfDhtmlShowDetailHeaderPeer.InitSubclass = function() {
+  AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.CLICK_EVENT_TYPE, AdfUIInputEvent.KEY_UP_EVENT_TYPE, AdfDisclosureEvent.EVENT_TYPE);
+  AdfRichUIPeer.addComponentPropertyChanges(this, "disclosed")
+};
+AdfDhtmlShowDetailHeaderPeer.prototype.HandleComponentClick = function(componentEvent) {
+  AdfDhtmlShowDetailHeaderPeer.superclass.HandleComponentClick.call(this, componentEvent);
+  this._disclosurePeer.HandleComponentClick(componentEvent)
+};
+AdfDhtmlShowDetailHeaderPeer.prototype.HandleComponentKeyUp = function(componentEvent) {
+  this._disclosurePeer.HandleComponentKeyUp(componentEvent)
+};
+AdfDhtmlShowDetailHeaderPeer.prototype.HandleComponentDisclosure = function(componentEvent) {
+  this._disclosurePeer.HandleComponentDisclosure(componentEvent)
+};
+AdfDhtmlShowDetailHeaderPeer.prototype.ComponentDisclosedChanged = function(component, domElement, newValue, oldValue) {
+  if(component.getPropertyValue("contentDelivery") == "immediate" || component.getPropertyValue("contentDelivery") == "lazy" && this.__isContentLoaded()) {
+    return this._disclosurePeer.ComponentDisclosedChanged(component, domElement, newValue, oldValue)
+  }else {
+    return false
+  }
+};
+AdfDhtmlShowDetailHeaderPeer.prototype._getContentDomElement = function() {
+  var rootElem = this.getDomElement();
+  return rootElem.childNodes[1]
+};
+AdfDhtmlShowDetailHeaderPeer.prototype.__handleClientSideDisclosure = function(disclosed) {
+  var contentDom = this._getContentDomElement();
+  if(contentDom) {
+    var newDisplay = disclosed ? "" : "none";
+    contentDom.style.display = newDisplay;
+    return true
+  }else {
+    return false
+  }
+};

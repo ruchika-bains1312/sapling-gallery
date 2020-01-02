@@ -1,0 +1,1099 @@
+/*
+** Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ **
+ **34567890123456789012345678901234567890123456789012345678901234567890123456789
+ **
+ ** Libraries needed by Applcore UIShell.
+ ** 
+ ** IMPORTANT: If you make changes in this file, you MUST increment the file name
+ ** and adjust any references to it.  This is because web browsers cache js 
+ ** files based on their name.
+ ** 
+ ** 
+ **   
+ */
+
+
+/* *****************************************************************************
+ ** Common Functions
+ **************************************************************************** */
+ 
+ /**
+ * Hide an arbitrary popup.
+ * @param client Id of popup to hide.
+ */
+function hidePopupByClientId(clientId)
+{
+  var popup = AdfPage.PAGE.findComponent(clientId);
+  if (popup != undefined && popup.isPopupVisible())
+  {
+    popup.hide();
+  }
+}
+
+/**
+ * Show an arbitrary popup.
+ * @param client Id of popup to show.
+ */
+function showPopupByClientId(clientId, hint)
+{
+  var popup = AdfPage.PAGE.findComponent(clientId);
+  if (popup != undefined)
+  {
+    popup.show(hint);
+  }
+}
+
+/**
+ * set focus to the relevant component.
+ * @param client Id of component to focus.  This component must implement the 
+ * focus() methd.
+ */
+function focusComponentByClientId(clientId)
+{
+  var comp = AdfPage.PAGE.findComponent(clientId);
+  if (comp != undefined)
+  {
+    comp.focus();
+  }
+}
+
+/**
+ * Hide an arbitrary popup.
+ * @pram source component triggering client event - will be used to find the 
+ * popup.
+ * @param popup Id of popup to hide.
+ */
+function hidePopup(source, popupId)
+{
+  var popup = source.findComponent(popupId);
+  if (popup != undefined && popup.isPopupVisible())
+  {
+    popup.hide();
+  }
+}
+
+/** ****************************************************************************
+ * UIShell Functions
+ **************************************************************************** */
+
+/**
+ * Function to open the supportability url in a new window.
+ * For UIShell, called from UIShellInitializer.
+ */
+function openUrlInNewWindow(url)
+{
+  window.open(url);
+}
+
+/**
+ * Function to reload the page
+ */
+
+function reloadCurrentUrl()
+{
+  window.location.reload();
+}
+
+/**
+ * Function to reload the page after all the notifications are processed
+ */
+
+function reloadAfterNotifications()
+{
+ if(notificationSent == notificationCount)
+ {   
+   window.location.reload();
+ }
+ else
+ {
+   //poll for every half a second
+   setTimeout(reloadAfterNotifications, 500);
+ }
+}
+
+/**
+ * Submit changes in the MainArea from RegionalArea
+ */
+function queueActionEventOnMainArea(actionEvent)
+{
+  if (actionEvent != null)
+  {
+    /* Search for the neareste AdfRichPanelSplitter component */
+    var eventSourceComponent = actionEvent.getSource();
+    if (eventSourceComponent != null)
+    {
+      var panelSplitterComponent = eventSourceComponent;
+
+      /* Keep walking up the component tree until an AdfRichPanelSplitter is found: */
+      while (panelSplitterComponent)
+      {
+        if (panelSplitterComponent instanceof AdfRichPanelSplitter)
+        {
+          break;
+        }
+
+        panelSplitterComponent = panelSplitterComponent.getParent();
+      }
+
+      if (panelSplitterComponent)
+      {
+        /* Queue the action event on the MainArea region: */
+        var mainAreaRegion = panelSplitterComponent.findComponent('USma');
+        if (mainAreaRegion != null)
+        {
+          AdfActionEvent.queue(mainAreaRegion, true);
+        }
+        else 
+        {
+          //Bug 19789103 - FndOverview page
+          var marFuse = panelSplitterComponent.findComponent('_FOpt1:_FOr1');
+
+          if (marFuse != null)
+          {
+            AdfActionEvent.queue(marFuse, true);
+          }
+          else
+          {
+            AdfLogger.LOGGER.warning('No region found to become the new event root.');
+          }
+        }     
+      }
+      else 
+      {
+        AdfLogger.LOGGER.severe('No AdfRichPanelSplitter found to become the new event root.');
+      }
+    }
+  }
+}
+
+/**
+ * Submit changes in the MainArea from GlobalArea.
+ * Use this in your clientListener when not in the JSF subtree containing
+ * panelSplitter that is the root of the main area.  Implementation primarily
+ * for Global Search.
+ */
+function queueGlobalActionEventOnMainArea(actionEvent)
+{
+  if (actionEvent != null)
+  {
+    // Search for the form - the higest reliable, uniquely rooted component.
+    var c = actionEvent.getSource();
+    if (c != null)
+    {
+      while (c)
+      {
+        if (c instanceof AdfRichForm)
+        {
+          break;
+        }
+
+        c = c.getParent();
+      }
+
+      if (c)
+      {
+        // Queue event on the MainArea region.
+        var mar = c.findComponent('USma');
+        if (mar != null)
+        {
+          AdfActionEvent.queue(mar, true);
+        }
+        else 
+        {
+          //Bug 19789103 - FndOverview page
+          var marFuse = c.findComponent('_FOpt1:_FOr1');
+          
+          if (marFuse != null)
+          {
+            AdfActionEvent.queue(marFuse, true);
+          }
+          else {
+            //Bug 21873961 - when transactional page is launched through PPR,
+            //we need to find main area region in ATK FuseWelcome page.
+            var marFuseAtk = c.findComponent('pt1:_FOr1');
+
+            if (marFuseAtk != null)
+            {
+              AdfActionEvent.queue(marFuseAtk, true);
+            }
+            else
+            {
+              AdfLogger.LOGGER.warning('No region found to become the new event root.');
+            }
+          }
+        }
+      }
+      else 
+      {
+        AdfLogger.LOGGER.severe('Cannot find this page\'s AdfRichForm.');
+      }
+    }
+  }
+}
+
+/**
+ * Bug 16947298 - PRINTING UI SHELL PAGES
+ * Submits print preview in the MainArea from GlobalArea to provide a printer friendly browser window with MainArea's content.
+ */
+function queuePrintOnMainArea(actionEvent)
+{    
+    if (actionEvent != null)
+    {
+        // Search for the form - the higest reliable, uniquely rooted component.
+        var c = actionEvent.getSource();
+        if (c != null)
+        {
+            while (c)
+            {
+                if (c instanceof AdfRichForm) 
+                {
+                    break;
+                }
+                c = c.getParent();
+            }
+            if (c)
+            {
+                //Find Classic Workarea page
+                var pmarClassic = c.findComponent('USma');
+                // Queue event on the MainArea region
+                if (pmarClassic != null)
+                {
+                    pmarClassic = pmarClassic.findComponent('MAprint');
+                    if (pmarClassic != null)
+                    {
+                        AdfActionEvent.queue(pmarClassic, true);
+                        actionEvent.cancel();
+                    }
+                }
+                else
+                {
+                    //Find Fuse Overview page
+                    var pmarFuse = c.findComponent('_FOpt1:_FOr1');
+                    //Queue event on the MainArea region
+                    if (pmarFuse != null)
+                    {
+                        var printBtn = fndFindComponentBydId(pmarFuse, "_FOSprint");
+                        if (printBtn != null)
+                        {
+                            AdfActionEvent.queue(printBtn, true);
+                            actionEvent.cancel();
+                        }
+                    }
+                    else
+                    {
+                        //If page is neither Classic Workarea nor Fuse Overview
+                        //then show alert message
+                        (new AdfCustomEvent(actionEvent.getSource(), "showPrintAlert", {"alert": true}, false)).queue();
+                        actionEvent.cancel();
+                    }
+                }
+            }
+            else {
+                AdfLogger.LOGGER.severe('Cannot find this page\'s print link');
+            }
+        }
+    }
+}
+
+function fndFindComponentBydId(component, id) 
+{
+  if (component == null)
+  {
+    return null;
+  }
+  
+  //check if parent & id are same
+  if (id==component)
+  {
+    return component;
+  }
+  
+  var childFound = null;
+ 
+  component.visitChildren(function(child)
+  {
+    if (child.getId() == "_FOSprint")
+    {
+      childFound = child;
+      return 1;
+    }
+    else
+    {
+      return 0;
+    }
+  });
+
+  if (childFound != null)
+  {
+    return childFound;
+  }
+  
+  return null;
+}
+
+/**
+ * Call to the ComposerUtils toggleMode method on Edit page click
+ */
+function togglePEPageMode(event)
+{
+  ComposerUtils.toggleMode(event);
+}
+
+/**
+ * Call to the ADF method for Data File URLview launch----ER 8331589
+ */
+function setNoresponseExpected(actionEvent)
+{
+  actionEvent.noResponseExpected();
+}
+
+/**
+ * Call to set the new root node for handling a refresh event.
+ */
+function handleEventRootOverride(actionEvent)
+{
+  /* Search for the neareste AdfRichForm component and use it as the event root: */
+  var eventSourceComponent = actionEvent.getSource();
+  var rootComponent = eventSourceComponent;
+  ComposerUtils.toggleMode(actionEvent);
+
+  /* Keep walking up the component tree until an AdfRichForm is found: */
+  while (rootComponent)
+  {
+    if (rootComponent instanceof AdfRichForm)
+    {
+      break;
+    }
+
+    rootComponent = rootComponent.getParent();
+  }
+
+  if (rootComponent)
+  {
+    /* Change the event root: */
+    actionEvent.setRoot(rootComponent);
+  }
+  else 
+  {
+    AdfLogger.LOGGER.severe('No AdfRichForm found to become the new event root.');
+  }
+}
+
+//Bug 8626195 -- to queue a server event for the partial refresh the popup with empty flow
+function tagsPopupClosedListener(event)
+{
+  var source=event.getSource();
+  var popupId = source.getClientId();
+          
+  var params = {};
+  params['popupId'] = popupId;
+  var type = "serverPopupClosed";
+  var immediate = true;
+  AdfCustomEvent.queue(source, type, params, immediate);
+  
+}
+
+function queueCustEventOnMainArea(clientId)
+{
+  var mainAreaRegion = AdfPage.PAGE.findComponent(clientId);
+  if (mainAreaRegion != null)
+  {
+    //AdfActionEvent.queue(mainAreaRegion, true);
+    AdfCustomEvent.queue(mainAreaRegion, "myCustomEvent", {skyIsFalling:false}, true);    
+  }
+}
+
+// for session workaround - bug 15918283 
+function setPrefetchCookieImageSource(sourceUrl, imageClientId)
+{
+  var image = AdfPage.PAGE.findComponent(imageClientId);
+  if (image != undefined)
+  {
+    if (image instanceof AdfRichImage)
+    {
+      image.setSource(sourceUrl);
+    }
+  }
+}
+
+var notificationCount = 0;
+var notificationSent = 0;
+
+function notificationProcessed() {
+  notificationSent = notificationSent + 1;
+}
+
+function addIFrame(iframeUrl, iframeIdx)
+{
+  var f1 = document.createElement("iframe");
+  f1.setAttribute('id', 'ifrm' + iframeIdx);
+  f1.setAttribute('width', 0);
+  f1.setAttribute('height',0);
+  f1.setAttribute('tabindex', -1);
+  if(f1.style.display=="none")
+  {
+    f1.style.display="block";
+  }
+  else
+  {
+    f1.style.display="none";
+  }
+  f1.setAttribute('src', iframeUrl);
+  if(f1.attachEvent)
+  {
+    f1.attachEvent('onload', notificationProcessed);
+  }
+  else
+  {
+    f1.onload = notificationProcessed;
+  }
+
+  notificationCount = notificationCount + 1;
+  document.body.appendChild(f1);
+}
+
+//timer for About This Page message banner
+function updateTimer(event)
+{
+  var source = event.getSource();
+  var timerMinutesComponentId = source.getProperty("timerMinutesComponent");
+  var timerSecondsComponentId = source.getProperty("timerSecondsComponent");
+  var recordingTime = source.getProperty("recordingTime");
+  var isFromStopButton = source.getProperty("fromStopRecordingButton");
+  
+  var timerMinutesComponent = source.findComponent(timerMinutesComponentId);
+  var timerSecondsComponent = source.findComponent(timerSecondsComponentId);
+  
+  var timerMinutesInInteger =  + timerMinutesComponent.getValue();
+  var timerSecondsInInteger =  + timerSecondsComponent.getValue();
+  var recordingTimeInInteger =  + recordingTime;
+  var decrementSeconds;
+  var decrementMinutes;
+  var unsetPoll = 0;
+  
+  if(isFromStopButton == "true")
+  {
+    decrementMinutes = timerMinutesInInteger;
+    decrementSeconds = timerSecondsInInteger;
+    unsetPoll = 1;
+  }
+  else
+  {
+    decrementSeconds = timerSecondsInInteger - 1 == -1 ? 59 : timerSecondsInInteger - 1;
+    decrementMinutes = decrementSeconds == 59 ? timerMinutesInInteger - 1 : timerMinutesInInteger;
+    if(decrementMinutes == 0 && decrementSeconds == 0)
+    {
+      decrementMinutes = recordingTimeInInteger;
+      unsetPoll = 1;
+    }
+    else
+    {
+      event.cancel(); //cancel the event after updating it
+    }
+  }
+     
+  if(decrementSeconds < 10)
+    decrementSeconds = "0" + decrementSeconds;
+  if(decrementMinutes < 10)
+    decrementMinutes = "0" + decrementMinutes;
+    
+  timerMinutesComponent.setValue(decrementMinutes);
+  timerSecondsComponent.setValue(decrementSeconds);
+  
+  if(unsetPoll == 1)
+  {
+    var pollComponentId = source.getProperty("pollComponentId");
+    var pollComponent = source.findComponent(pollComponentId); 
+    pollComponent.setInterval(-1);
+  }     
+}  
+
+/** ****************************************************************************
+ * Attachments Functions
+ **************************************************************************** */
+function openManageAttachPopup(event) 
+{
+  var source = event.getSource();
+  var showCollapsed = source.getProperty("detailsPanelCollapsed");
+  if (showCollapsed != undefined) {
+      var splitter = source.findComponent("::AlMgmtAVw:dc_ps1");
+      splitter.setCollapsed(showCollapsed);
+  }
+}
+
+function openDirectEditAttachPopup(event) {
+  var source = event.getSource();
+  var agentIsIE = AdfAgent.AGENT.getPlatform() == AdfAgent.IE_PLATFORM;
+  var wid = agentIsIE ? document.body.clientWidth : window.innerWidth;
+  var hei = agentIsIE ? document.body.clientHeight : window.innerHeight;
+  // Send window width and height when launching the direct edit popup.
+  AdfCustomEvent.queue(source, "AttachDirectEditCustomEvent", 
+  {
+    width : wid, height : hei
+  }, true);
+}
+
+/**
+ * Event handler for when the Zoom select one choice has been used to select a
+ * new zoom level value.
+ * @param event the Event raised from the select one choice.
+ */
+function attachPreviewResize(event) 
+{
+    // find the id of the list view component.
+    var socZoom = event.getSource();
+    var prevLv = socZoom.findComponent("lvInPrv");
+    var prevLvId = prevLv.getClientId();
+    
+    // find the new zoom value and perform the resize.
+    var zoomVal = event.getNewValue();
+    applyPreviewResize(zoomVal, prevLvId, prevLv);
+}
+
+/**
+ * Given a component determine if it is an attachment inline preview component.
+ * @param currComponent the component to test.
+ * @return 1 - found the attachment component, 0 - attachment component not found.
+ */
+function findAttachPreviewComponents(currComponent) {
+    // find a RichPanelStretchLayout whose id is attachment inline preview - dc_aip.
+    if (currComponent.getComponentType() == "oracle.adf.RichPanelStretchLayout")
+    {
+        if (currComponent.getId() == "dc_aip") {
+            // found the component so check its children to ensure that it is 
+            // a attachment inline preview.
+            var children = currComponent.getDescendantComponents();
+            var previewChildren = AdfPage.PAGE.reduceMatchedComponents(children, function(child) {
+                return (child.getId() == "pglInPrvTb" || child.getId() == "lvInPrv") ? 1 : 0;
+            });
+            return previewChildren.length == 2 ? 1 : 0;
+        }
+    }
+    return 0;
+}
+
+/**
+ * Resize event handler triggered by the ADF framework when the inline preview's
+ * list view is resized.
+ */
+function notifyAttachPreviewResize() {
+    // find all attachments inline preview components in the ADF page.
+    var attachComponents = AdfPage.PAGE.matchComponents(findAttachPreviewComponents);
+    for (var i = 0; i < attachComponents.length; i++) {
+        // perform a resize on all matching components
+        var component = attachComponents[i];
+        var socZoom = component.findComponent("socZoom");
+        var zoomVal = socZoom.getValue();
+        var prevLv = component.findComponent("lvInPrv");
+        var prevLvId = prevLv.getClientId();
+        applyPreviewResize(zoomVal, prevLvId, prevLv);
+    }
+}
+
+/**
+ * Roll through each of the items in the preview list view and resize the image
+ * component contained within it.
+ * @param zoomVal the zoom level to resize the image to.  This will either be 
+ * @param previewLvId the client id of the preview list view component.
+ * @param prevLv the list view component if it has been already loaded. 
+ * a scale number (e.g. 1.5 = 150%) or pageWidth or pageHeight.
+ */
+function applyPreviewResize(zoomVal, previewLvId, prevLv)
+{
+    // Find the node for the preview and implement a recursive visitor pattern 
+    // for each of the list views children to perform the resize on them.
+    var prevLvComp = prevLv;
+    if (typeof prevLvComp === "undefined") 
+    {
+        prevLvComp = AdfPage.PAGE.findComponentByAbsoluteId(previewLvId);
+    }
+    var prevLvDomNode = AdfAgent.AGENT.getElementById(previewLvId);
+    var prevLvDataContainerDomNode = prevLvDomNode.firstChild;
+    var totalHeight = 20;  // top and bottom padding
+    var firstLvItem = undefined;
+    prevLvComp.visitChildren(function(child)
+    {
+        // determine if the child is actually an image to resize.
+        var childId = child.getId();
+        if (childId == "aviPrev")
+        {
+            // find the original size of the image which is stored as additional
+            // properties on the image.
+            var imageZoomWidth = child.getProperty("initialWidth");
+            var imageZoomHeight = child.getProperty("initialHeight");
+            
+            // determine if the zoom multiplier has already been supplied or
+            // needs to be dynamically calculated (page width/height). Subtract 
+            // 20px off the data container width to account for the 10px padding
+            // on each side of the list item and 1px border on the image.            
+            var zoomMultiplier = zoomVal;            
+            if ("pageWidth" == zoomVal) {                
+                var lvWidth = prevLvDataContainerDomNode.clientWidth - 22;
+                zoomMultiplier = lvWidth / imageZoomWidth;
+            } else if ("pageHeight" == zoomVal) {
+                var lvHeight = prevLvDomNode.clientHeight - 22;
+                zoomMultiplier = lvHeight / imageZoomHeight;            
+            }
+    
+            // set the style for the image allow the browser to resize to the
+            // requested zoom value.
+            imageZoomWidth = imageZoomWidth * zoomMultiplier; 
+            imageZoomHeight = imageZoomHeight * zoomMultiplier;
+            totalHeight += imageZoomHeight;
+            child.setInlineStyleProperty("width", imageZoomWidth + "px");
+            child.setInlineStyleProperty("height", imageZoomHeight + "px");
+            
+            // set the style on the parent.
+            var imageParent = child.getParent();
+            if (imageParent.getId() == "liInPrv") {
+                var betweenPagePadding = 2; // two pixels for the top and bottom borders.
+                
+                var imageParentSibling = AdfAgent.AGENT.getElementById(imageParent.getClientId()).nextSibling;
+                if (imageParentSibling != null) {
+                    betweenPagePadding += (20 * zoomMultiplier); // actual page gap which is scaled to be 20px at 100% size.
+                }
+                imageParent.setInlineStyleProperty("height", (imageZoomHeight + betweenPagePadding) + "px");
+                
+                if (typeof firstLvItem === "undefined") {
+                    firstLvItem = imageParent;
+                }
+            }
+            
+            // do not go deeper into children as this was the element being looked for.
+            return 1;
+        }
+        else if (childId == "pglInPrv") {
+          // Not a file preview only needs height set to what would be "pageHeight"
+          var lvNoFileHeight = prevLvDomNode.clientHeight - 22;      
+          child.setInlineStyleProperty("height", lvNoFileHeight + "px");
+ 
+          // do not go deeper into children as this was the element being looked for.
+          return 1;
+        }
+        else
+        {
+            // continue iterating children.
+            return 0;
+        }
+    });
+    
+    // ensure that the image is centered if there 
+    if (!(typeof firstLvItem === "undefined"))
+    {
+        var marginTop = 0;
+        if ((prevLvDomNode.clientHeight - 20) > totalHeight) {
+            marginTop = ((prevLvDomNode.clientHeight - 20) / 2) - (totalHeight / 2);            
+        }
+        firstLvItem.setInlineStyleProperty("margin-top", marginTop + "px");
+    }
+}
+
+/**
+ * Function to create an isntance of the Attachments Preview Data Loader behavior.
+ */
+function AttachPreviewDataLoadCustomBehavior()
+{
+  this.Init();
+}
+AdfObject.createSubclass(AttachPreviewDataLoadCustomBehavior, AdfClientBehavior);
+
+/**
+ * Initializer for the Attachments Preview Data Loader behavior.  This will cause
+ * a timered event to trigger if the preview data requires loading.
+ */
+AttachPreviewDataLoadCustomBehavior.prototype.initialize = function(component)
+{
+  this._clientId = component.getClientId();
+  var saveLoadCallback = this.createCallback(this._loadListener);
+  window.setTimeout(saveLoadCallback, 5);
+}
+
+/**
+ * Callback function to perform the preview list view data population.
+ */
+AttachPreviewDataLoadCustomBehavior.prototype._loadListener = function() 
+{
+  var clientId = this._clientId;
+  var lv = AdfPage.PAGE.findComponent(clientId);
+  var lvParent = lv.getParent();
+  var lvLoaded = lv.getProperty("previewLoaded");
+  if (lvLoaded) 
+  {
+    var socZoom = lvParent.findComponent("socZoom");
+    var zoomVal = socZoom.getValue();
+    applyPreviewResize(zoomVal, clientId, lv); 
+  }
+  else
+  {
+    AdfCustomEvent.queue(lv, "initPreviewLoad", {}, true); 
+  }
+
+  // add a resize listener to the parent of the list view.
+  var lvParentClientId = lvParent.getClientId();
+  AdfAgent.AGENT.removeResizeListener(lvParentClientId, notifyAttachPreviewResize);
+  AdfAgent.AGENT.addResizeListener(lvParentClientId, notifyAttachPreviewResize);
+}
+
+/** ************************************************************************* */
+
+//javascript for InfoTile component - start
+InfoTileComp = {}
+
+InfoTileComp.raiseSelectionEvent = function(evt)
+{
+  var source = evt.getSource();
+  var index = source.getProperty("index");
+  var selected = false;
+  
+  while(index == null)
+  {
+    source = source.getParent();
+    index = source.getProperty("index");
+    selected = source.getProperty("selected");
+  }
+
+  // If the tile is already selected there is no need to raise selection event
+  if(!selected)
+  {
+    // Go past the Declarative component definition and into its parent  
+    source = source.getParent();
+    
+    // Go past the conveyor belt if any
+    if (source.getComponentType().indexOf("RichConveyorBelt") >=0 || source.getComponentType().indexOf("RichDynamicDeclarativeComponent") >= 0)
+    {
+      source = source.getParent();
+    }
+    
+    //raise 'tileSelected' event on the panel group layout component sorrounding detail region.
+    //this will make sure that any data changes get posted to server.
+    pslSrc = source.getParent().getParent().getParent();
+    pglSrc = pslSrc.findComponent("ITPpgl3");
+    (new AdfCustomEvent(pglSrc, "tileSelected", {"index": index}, false)).queue();
+ 
+    //(new AdfCustomEvent(source, "tileSelected", {"index": index}, false)).queue();
+    evt.cancel();
+  }
+}
+//javascript for InfoTile component - end
+
+/*
+ * Central javascript for clickToEdit table.
+ * NOTE: This javascript is provided by ADF team for 
+ * Applcore to host it centrally. Do not change this.
+ * (ER 22571043)
+ */
+function fndPreventEditable(event) 
+{ 
+  var source = event.getSource();
+  while (source.getParent() != null)
+  {
+    source = source.getParent();
+    if (source instanceof AdfRichTable)
+    {
+      source.preventSwitchToEditableMode();
+      break;
+    }
+  }
+} 
+
+/*
+ * Bug-26331660
+ * Javascript Api registered for page composer tool in USB 
+ */
+callPageComposerForUSB = function ()
+{
+  //First find page composer hidden component in FusePlus template page
+  var pmarFuse = AdfPage.PAGE.findComponentByAbsoluteId("_FOpt1:_UISpchid");
+  
+  if (pmarFuse != null)
+  {
+    //fuseplus page. Queue event on hidden component so that page composer popup will launch
+    AdfActionEvent.queue(pmarFuse, true);
+    actionEvent.cancel();
+  }
+  else 
+  {
+   //this means page is not fuse plus. search hidden component in classic page
+   var pmarClassic = AdfPage.PAGE.findComponentByAbsoluteId("pt1:_UISpchid");
+    if (pmarClassic != null)
+    {
+      //Queue event on hidden component so that page composer popup will launch
+      AdfActionEvent.queue(pmarClassic, true);
+      actionEvent.cancel();
+    }
+    else 
+    {
+     //this means id is not present in ui
+      console.log("PageComposer Id Not Found");
+    }
+  }
+}
+
+/*
+ * ER#27934286 
+ * Method to open passed url in a new tab
+ */
+function launchUrlInNewTab(url)
+{
+    console.log(url);
+    window.open(url,'_blank');
+}
+
+// Navigator JS Rafa //
+
+/**
+ * 
+ * @param evt 
+ */
+
+function navmenuAnimationDropDown(evt) {
+  var trigerComponent = event.target || event.srcElement;
+  var parent = trigerComponent.parentElement.parentElement.parentElement.parentElement;
+  var container = parent.childNodes[1];
+  evt.cancel();
+}
+
+// Action Event From Node
+function navmenuExpandFunc(actionEvent) {
+  var showMoreLinkComponent = actionEvent.getSource().getParent().getParent().getParent().findComponent('nvcl1');
+  var allNodesExpandedClientState = showMoreLinkComponent.getProperty("allNodesExpanded");
+  var nodeExpanded = navmenuManageExpandCollapse(actionEvent.getSource());
+  var allNodesExpanded = navmenuValidateExpansion(showMoreLinkComponent, allNodesExpandedClientState);
+  showMoreLinkComponent.setProperty('allNodesExpanded',allNodesExpanded);
+  //actionEvent.getSource().scrollIntoView(top);
+  var nodeId = actionEvent.getSource().getProperty("nodeId");
+  AdfCustomEvent.queue(actionEvent.getSource(),
+                 "nvm_nodeExpandedOrCollapsed",
+                 {nvm_nodeId:nodeId,nvm_nodeExpanded:String(nodeExpanded),nvm_allNodesExpanded:String(allNodesExpanded)},
+                 true);              
+  var clientNavigatorScrollContainerId = actionEvent.getSource().getProperty("clientNavigatorScrollContainerId");
+  var clientNavigatorScrollContainer = AdfPage.PAGE.findComponentByAbsoluteId(clientNavigatorScrollContainerId);
+  var ContentElem =AdfRichUIPeer.getDomElementForComponent(actionEvent.getSource().getParent());
+  var NavigatorElem = AdfRichUIPeer.getDomElementForComponent(clientNavigatorScrollContainer);
+  var ContentHeight = parseInt(ContentElem.style.height);
+  var ContentTop = ContentElem.offsetTop;
+  var NavigatorHeight = window.innerHeight;
+  var NavigatorScroll = NavigatorElem.scrollTop;
+  //console.log("ContentElem"+ ContentElem.id);
+  //console.log("ContentHeight "+ContentHeight);
+  //console.log("ContentTop "+ContentTop);
+  //console.log("NavigatorHeight "+NavigatorHeight);
+  //console.log("NavigatorScroll "+NavigatorScroll);
+  if((ContentHeight + ContentTop) > (NavigatorHeight + NavigatorScroll)) {
+      //setTimeout(function(){ NavigatorElem.scrollTop = (ContentHeight + ContentTop) - (NavigatorHeight + NavigatorScroll) + NavigatorScroll; console.log("NavigatorElem.scrollTop "+NavigatorElem.scrollTop ); }, 400);  
+      setTimeout(function(){ NavigatorElem.scrollTop = (ContentHeight + ContentTop) - NavigatorHeight ; }, 400);  
+  }             
+  actionEvent.cancel();
+}
+
+function navmenuKeyTabCall(actionEvent) {
+    navmenuKeyNavigatorExapndFunc(actionEvent);
+    actionEvent.cancel();
+}
+
+function navmenuKeyNavigatorExapndFunc(actionEvent) {
+  elementCL = actionEvent.getSource();
+  navmenuManageExpandCollapse(elementCL.getParent());
+  actionEvent.cancel();
+}
+
+// Exapand or Collapse Node
+function navmenuManageExpandCollapse(MasterNode) {
+  var parent = MasterNode.getParent();
+  /* Keep walking up the component tree until an AdfRichPanelGroupLayout is found: */
+  while (parent) {
+    if (parent instanceof AdfRichPanelGroupLayout) {
+      break;
+    }
+    parent = parent.getParent();
+  }
+  var sibling = null;
+  var count = 0;
+  parent.visitChildren(function (nodeChildV2) {
+    if (nodeChildV2 instanceof AdfRichPanelGroupLayout) {
+      if(count == 1) {
+      sibling = nodeChildV2;
+      return 1;
+      } else {
+        count++;
+        return 0;
+      }     
+    }
+    else {
+      return 0;
+    }
+  });
+  var child = null;
+  MasterNode.visitChildren(function (nodeChild) {
+    if (nodeChild instanceof AdfRichCommandImageLink) {
+      child = nodeChild;
+      return 1;
+    }
+    else {
+      return 0;
+    }
+  });
+  expandLabel = MasterNode.getProperty("expandLabel");
+  collapseLabel = MasterNode.getProperty("collapseLabel");
+  var nodeExpanded = false;
+  var nodeExpandStateFromClient = MasterNode.getProperty("disclosed");
+  var screenReaderEnabled = AdfPage.PAGE.isScreenReaderMode();
+  if (nodeExpandStateFromClient == true) {
+    MasterNode.setProperty("disclosed", false);
+    nodeExpanded = false;
+    parent.setInlineStyleProperty('height', '41px');
+    if (screenReaderEnabled == true) {
+	child.setProperty('text',expandLabel);
+    }
+    else {
+    	child.setInlineStyleProperty('transform', 'rotate(0deg)');
+    }
+    child.setInlineStyleProperty('padding-top', '2.5px');
+    child.setInlineStyleProperty('padding-bottom', '0px');
+    child.setInlineStyleProperty('title', expandLabel);
+    child.setInlineStyleProperty('alt', expandLabel);
+    sibling.setInlineStyleProperty('visibility','hidden');
+  }
+  else {
+    MasterNode.setProperty("disclosed", true);
+    nodeExpanded = true;
+    parent.setInlineStyleProperty('height', (document.getElementById(MasterNode.getClientId()).offsetHeight + document.getElementById(sibling.getClientId()).offsetHeight) + "px");
+    if (screenReaderEnabled == true) {
+	child.setProperty('text',collapseLabel);
+    }
+    else {
+    	child.setInlineStyleProperty('transform', 'rotate(180deg)');
+    }
+    child.setInlineStyleProperty('padding-top', '0px');
+    child.setInlineStyleProperty('padding-bottom', '2.5px');
+    child.setInlineStyleProperty('title', collapseLabel);
+    child.setInlineStyleProperty('alt', collapseLabel);
+    sibling.setInlineStyleProperty('visibility','visible');
+  }
+  return nodeExpanded;
+}
+
+//Event from the Exapand/Collapse All
+function navmenuShowExpand(actionEvent) {
+  var showLink = actionEvent.getSource();
+  var previousExpandAllValue = showLink.getProperty("allNodesExpanded");
+  var expandAllValue = !previousExpandAllValue;
+  showLink.setProperty('allNodesExpanded',expandAllValue);
+  if (expandAllValue == true) {
+      showLink.setProperty('text', showLink.getProperty("showLessLabel"));
+    }
+    else {
+      showLink.setProperty('text', showLink.getProperty("showMoreLabel"));
+    }
+  var greetingComponent = showLink.findComponent("nv_npgl1");
+  var childrens = greetingComponent.getDescendantComponents();
+  for (i = 0;childrens.length > i;i++) {
+    if (childrens[i].getParent().getClientId() == greetingComponent.getClientId()){
+      if (childrens[i].getComponentType() == 'oracle.adf.RichPanelGroupLayout'){
+            var childDisclosedValue = childrens[i].getDescendantComponents()[0].getProperty('disclosed');
+        if ( childDisclosedValue != expandAllValue) {
+          navmenuManageExpandCollapse(childrens[i].getDescendantComponents()[0]);
+        }
+      }
+    }
+  }
+  AdfCustomEvent.queue(showLink,
+                       "nvm_allNodesExpandedOrCollapsed",
+                       // Send one parameter
+                       {nvm_allNodesExpanded:String(expandAllValue)},
+                       // Make it "immediate" on the server
+                       true);
+  actionEvent.cancel();
+}
+
+// Review if all Nodes are Exp or Collapse & Change Expand/Collapse all Label
+function navmenuValidateExpansion(MasterElement, state) {
+  var greetingComponent = MasterElement.findComponent("nv_npgl1");
+  var childrens = greetingComponent.getDescendantComponents();
+  var showMoreLabel = MasterElement.getProperty("showMoreLabel");
+  var showLessLabel = MasterElement.getProperty("showLessLabel");
+  var label = false;
+  var allNodesExpanded = false;
+  for (i = 0;childrens.length > i;i++) {
+    if (childrens[i].getParent().getClientId() == greetingComponent.getClientId())
+      if (childrens[i].getComponentType() == 'oracle.adf.RichPanelGroupLayout') {
+        if (childrens[i].getDescendantComponents()[0].getProperty('disclosed') == false) {
+          label = true;
+          break;
+        }
+      }
+  }
+    if (label == true) {
+      MasterElement.setProperty('text', showMoreLabel);
+      allNodesExpanded = false;
+      
+    }
+    else {
+      MasterElement.setProperty('text', showLessLabel);
+      allNodesExpanded = true;
+    }
+  return allNodesExpanded;
+}
+
+//Create mask and hide browser scollbar when new navigator popup opens in desktop
+function navmenuPopupOpening(event) {
+  //Fetch the glass pane
+  var mask = document.getElementById("navmenuMaskDiv");
+  if(!mask) {
+    mask = document.createElement("div");
+    mask.id = "navmenuMaskDiv";
+    mask.style.left = "0";
+    mask.style.top = "0";
+    mask.style.height = "100%";
+    mask.style.width = "100%";
+    mask.style.position = "absolute";
+    mask.style.background = "#fff";
+    mask.style.opacity = "0.2";
+    mask.style.zIndex = "1000";
+    document.body.appendChild(mask);
+  }
+  mask.style.display = "block";
+  document.documentElement.style.overflow = 'hidden'; // firefox, chrome 
+  document.body.scroll = "no"; // ie only 
+}
+
+//Remove mask and show browser scrollbar when new navigator popup closes, maybe when user clicks on the mask in desktop
+function navmenuPopupClosed(event) {  
+  //Fetch the glass pane
+   var mask = document.getElementById("navmenuMaskDiv"); 
+   mask.style.display = "none"; 
+   document.documentElement.style.overflow = 'auto';  // firefox, chrome 
+   document.body.scroll = "yes"; // ie only 
+} 
+
+//Show or hide glass pane when mobile panel drawer in simple mobile shell is opened (maybe on navigator click) or closed
+function navmenuPanelDrawerDisclosure(event) {
+    var panelDrawerShowDetailItem = event.getSource();
+    var isDisclosed = panelDrawerShowDetailItem.getDisclosed();
+    //Fetch the glass pane
+    var mask = document.getElementById("navmenuMaskDiv");
+    //if mask does not exist and panel drawer is opened
+    if (!mask && isDisclosed){
+        //console.log("before creating mask");
+        //Create the glass pane
+        mask = document.createElement("div");
+        mask.id = "navmenuMaskDiv";
+        mask.style.left = "0";
+        mask.style.top = "0";
+        mask.style.height = "100%";
+        mask.style.width = "100%";
+        mask.style.position = "absolute";
+        mask.style.background = "#fff";
+        mask.style.opacity = "0.2";
+        mask.style.zIndex = "1000";
+        mask.style.display = "block";
+        mask.addEventListener("click",function(){});
+        document.body.appendChild(mask);
+        //console.log("Mask created and added to DOM");
+    } else if (mask && !isDisclosed) {
+        //console.log("Before removing mask");
+        mask.remove();
+        //console.log("After removing mask");
+    }
+}

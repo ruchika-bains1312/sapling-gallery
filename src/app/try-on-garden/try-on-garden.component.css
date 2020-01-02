@@ -1,0 +1,11 @@
+@import "../../assets/css/draweditor.css";
+.side-panel{
+overflow:scroll;
+height:470px;
+max-height:100%;
+scrollbar-width: 2px;
+}
+.canvas-renderer{
+    margin: 0 7% ;
+    max-height:470px;
+}

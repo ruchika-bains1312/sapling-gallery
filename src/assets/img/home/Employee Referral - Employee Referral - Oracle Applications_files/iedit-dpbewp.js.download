@@ -1,0 +1,239 @@
+function AdfRichPlainTextEditor(propertyName) {
+  this.Init(propertyName)
+}
+AdfObject.createSubclass(AdfRichPlainTextEditor, AdfRichInlineEditor);
+AdfRichPlainTextEditor._extraWidth = 0;
+AdfRichPlainTextEditor.prototype.Init = function(propertyName) {
+  AdfAssert.assertString(propertyName);
+  AdfRichPlainTextEditor.superclass.Init.call(this);
+  this._propertyName = propertyName
+};
+AdfRichPlainTextEditor.prototype.PreEdit = function() {
+  return this.GetEditedDomElement() != null
+};
+AdfRichPlainTextEditor.prototype.getEditedProperty = function() {
+  return this._propertyName
+};
+AdfRichPlainTextEditor.prototype.startEdit = function(component, event) {
+  AdfRichPlainTextEditor.superclass.startEdit.call(this, component, event);
+  var peer = this.GetEditedPeer();
+  var theDocument = peer.getDomDocument();
+  var textArea = theDocument.createElement("input");
+  textArea.type = "text";
+  var agent = AdfAgent.AGENT;
+  var propValue = component.getProperty(this._propertyName);
+  textArea.value = propValue;
+  component._orgininalEditValue = propValue;
+  var editedDomElement = this.GetEditedDomElement();
+  agent.copyStyle(editedDomElement, textArea);
+  var textAreaStyle = textArea.style;
+  textAreaStyle.position = "absolute";
+  if(textAreaStyle.MozBoxSizing) {
+    textAreaStyle.MozBoxSizing = null
+  }
+  textAreaStyle.zIndex = 1;
+  AdfRichPlainTextEditor._textArea = textArea;
+  AdfRichPlainTextEditor._extraWidth = textAreaStyle.textAlign == "left" ? 20 : 0;
+  var body = theDocument.body;
+  body.insertBefore(textArea, body.firstChild);
+  this._updateTextAreaPosition(textArea, editedDomElement);
+  editedDomElement.style.visibility = "hidden";
+  AdfFocusUtils.focusElementDelayed(textArea, 1);
+  var listener = AdfRichPlainTextEditor._commitEditStub;
+  agent.addBubbleEventListener(textArea, "keyup", listener);
+  agent.addBubbleEventListener(textArea, "keypress", listener);
+  component.addEventListener("propertyChange", this._syncFromPropertyChange, this);
+  agent.addEventBubbles(textArea, AdfRichPlainTextEditor._handleEditorEventStub)
+};
+AdfRichPlainTextEditor.prototype.stopEdit = function() {
+  this._commitEdit();
+  this._finishEdit();
+  AdfRichPlainTextEditor.superclass.stopEdit.call(this)
+};
+AdfRichPlainTextEditor.prototype._handleEditorEvent = function(event) {
+  if(event.type == "blur") {
+    AdfPage.PAGE.setEditedComponent(null, event)
+  }else {
+    if(event.type == "keyup") {
+      var keyCode = AdfAgent.AGENT.getKeyCode(event);
+      switch(keyCode) {
+        case AdfKeyStroke.ESC_KEY:
+          var component = this.getEditedComponent();
+          AdfRichPlainTextEditor._textArea.value = component._orgininalEditValue;
+          AdfPage.PAGE.setEditedComponent(null, event);
+          break;
+        case AdfKeyStroke.ENTER_KEY:
+          if(event.altKey || !event.ctrlKey && !event.shiftKey) {
+            AdfPage.PAGE.setEditedComponent(null, event)
+          }
+          break;
+        case AdfKeyStroke.TAB_KEY:
+          AdfPage.PAGE.setEditedComponent(null, event);
+          break
+      }
+    }
+  }
+};
+AdfRichPlainTextEditor.prototype.GetEditedDomElement = function() {
+  return this.GetEditedPeer().getDomElement()
+};
+AdfRichPlainTextEditor.prototype._commitEdit = function() {
+  this.getEditedComponent().setProperty(this._propertyName, AdfRichPlainTextEditor._textArea.value, true)
+};
+AdfRichPlainTextEditor.prototype._finishEdit = function() {
+  var component = this.getEditedComponent();
+  component._orgininalEditValue = null;
+  component.removeEventListener("propertyChange", this._syncFromPropertyChange, this);
+  var textArea = AdfRichPlainTextEditor._textArea;
+  var agent = AdfAgent.AGENT;
+  var listener = AdfRichPlainTextEditor._commitEditStub;
+  agent.removeBubbleEventListener(textArea, "keypress", listener);
+  agent.removeBubbleEventListener(textArea, "keyup", listener);
+  agent.removeEventBubbles(textArea, AdfRichPlainTextEditor._handleEditorEventStub);
+  var editedDomElement = this.GetEditedDomElement();
+  var theDocument = editedDomElement.ownerDocument;
+  theDocument.body.removeChild(textArea);
+  editedDomElement.style.visibility = "visible";
+  AdfRichPlainTextEditor._textArea = null;
+  AdfRichPlainTextEditor._extraWidth = 0
+};
+AdfRichPlainTextEditor._commitEditStub = function() {
+  var editedComponent = AdfPage.PAGE.getEditedComponent();
+  if(editedComponent != null) {
+    var inlineEditor = editedComponent.getPeer().getInlineEditor(editedComponent);
+    if(inlineEditor != null) {
+      AdfAssert.assertPrototype(inlineEditor, AdfRichPlainTextEditor);
+      inlineEditor._commitEdit()
+    }
+  }
+};
+AdfRichPlainTextEditor._handleEditorEventStub = function(event) {
+  event = event ? event : window.event;
+  var editedComponent = AdfPage.PAGE.getEditedComponent();
+  if(editedComponent != null) {
+    var inlineEditor = editedComponent.getPeer().getInlineEditor(editedComponent);
+    if(inlineEditor != null) {
+      AdfAssert.assertPrototype(inlineEditor, AdfRichPlainTextEditor);
+      inlineEditor._handleEditorEvent(event)
+    }
+  }
+};
+AdfRichPlainTextEditor.prototype._syncFromPropertyChange = function(propertyChange) {
+  if(propertyChange.getPropertyName() == this._propertyName) {
+    var textArea = AdfRichPlainTextEditor._textArea;
+    var editedDomElement = this.GetEditedDomElement();
+    this._updateTextAreaPosition(textArea, editedDomElement);
+    var newValue = propertyChange.getNewValue();
+    if(newValue == null) {
+      newValue = ""
+    }
+    if(textArea.value != newValue) {
+      textArea.value = newValue
+    }
+  }
+};
+AdfRichPlainTextEditor.prototype._updateTextAreaPosition = function(textArea, editedDomElement) {
+  var textAreaStyle = textArea.style;
+  var agent = AdfAgent.AGENT;
+  var bounds = agent.getElementPageBounds(editedDomElement);
+  var leftPos = bounds.left;
+  var textAlign = textAreaStyle.textAlign;
+  textAreaStyle.top = bounds.top + "px";
+  textAreaStyle.left = leftPos + "px";
+  agent.setOuterWidth(textArea, editedDomElement.offsetWidth + AdfRichPlainTextEditor._extraWidth);
+  agent.setOuterHeight(textArea, editedDomElement.offsetHeight)
+};
+
+function AdfDhtmlSimpleLabelEditor() {
+  this.Init("label")
+}
+AdfObject.createSubclass(AdfDhtmlSimpleLabelEditor, AdfRichPlainTextEditor);
+AdfDhtmlSimpleLabelEditor.getInlineEditor = function() {
+  var inlineEditor = AdfDhtmlSimpleLabelEditor._INLINE_EDITOR;
+  if(inlineEditor == null) {
+    inlineEditor = new AdfDhtmlSimpleLabelEditor;
+    AdfDhtmlSimpleLabelEditor._INLINE_EDITOR = inlineEditor
+  }
+  return inlineEditor
+};
+AdfDhtmlSimpleLabelEditor.prototype.GetEditedDomElement = function() {
+  var component = this.getEditedComponent();
+  if(component.getProperty("label") == undefined) {
+    return null
+  }
+  var rootDomElement = this.GetEditedPeer().getDomElement();
+  return AdfDomUtils.getFirstDescendentElement(rootDomElement, "LABEL")
+};
+
+function AdfDhtmlSimpleTextEditor(wrapperElementName) {
+  this.Init(wrapperElementName)
+}
+AdfObject.createSubclass(AdfDhtmlSimpleTextEditor, AdfRichPlainTextEditor);
+AdfDhtmlSimpleTextEditor.prototype.Init = function(wrapperElementName) {
+  AdfDhtmlSimpleTextEditor.superclass.Init.call(this, "text");
+  AdfAssert.assertString(wrapperElementName);
+  this._wrapperElementName = wrapperElementName
+};
+AdfDhtmlSimpleTextEditor.getInlineEditor = function() {
+  var inlineEditor = AdfDhtmlSimpleTextEditor._INLINE_EDITOR;
+  if(inlineEditor == null) {
+    inlineEditor = new AdfDhtmlSimpleTextEditor("span");
+    AdfDhtmlSimpleTextEditor._INLINE_EDITOR = inlineEditor
+  }
+  return inlineEditor
+};
+AdfDhtmlSimpleTextEditor.getAnchorInlineEditor = function() {
+  var inlineEditor = AdfDhtmlSimpleTextEditor._ANCHOR_INLINE_EDITOR;
+  if(inlineEditor == null) {
+    inlineEditor = new AdfDhtmlSimpleTextEditor("a");
+    AdfDhtmlSimpleTextEditor._ANCHOR_INLINE_EDITOR = inlineEditor
+  }
+  return inlineEditor
+};
+AdfDhtmlSimpleTextEditor.prototype.GetEditedDomElement = function() {
+  var component = this.getEditedComponent();
+  if(component.getProperty("text") == undefined) {
+    return null
+  }
+  var rootElement = this.GetEditedPeer().getDomElement();
+  var wrapperElement = AdfDomUtils.getFirstDescendentElement(rootElement, this._wrapperElementName);
+  if(wrapperElement) {
+    var accessKeyValue = component.getProperty("accessKey", null);
+    if(accessKeyValue != null) {
+      var accessKeyElement = AdfDomUtils.findAccessKeyDom(rootElement, accessKeyValue);
+      return accessKeyElement == wrapperElement ? rootElement : wrapperElement
+    }
+    return wrapperElement
+  }
+  return rootElement
+};
+
+function AdfDhtmlNavigationItemTextEditor(wrapperElementName) {
+  this.Init("text")
+}
+AdfObject.createSubclass(AdfDhtmlNavigationItemTextEditor, AdfRichPlainTextEditor);
+AdfDhtmlNavigationItemTextEditor.getInlineEditor = function() {
+  var inlineEditor = AdfDhtmlNavigationItemTextEditor._INLINE_EDITOR;
+  if(inlineEditor == null) {
+    inlineEditor = new AdfDhtmlNavigationItemTextEditor;
+    AdfDhtmlNavigationItemTextEditor._INLINE_EDITOR = inlineEditor
+  }
+  return inlineEditor
+};
+AdfDhtmlNavigationItemTextEditor.prototype.GetEditedDomElement = function() {
+  var component = this.getEditedComponent();
+  if(!component.getProperty("text")) {
+    return null
+  }
+  var rootElement = this.GetEditedPeer().getDomElement();
+  return AdfDhtmlCommandNavigationItemPeer.getInlineEditableTextElement(component, rootElement)
+};
+
+function AdfDhtmlSelectBooleanTextEditor() {
+  this.Init("text")
+}
+AdfObject.createSubclass(AdfDhtmlSelectBooleanTextEditor, AdfRichPlainTextEditor);
+AdfDhtmlSelectBooleanTextEditor.prototype.GetEditedDomElement = function() {
+  var rootDomElement = this.GetEditedPeer().getDomElement();
+  return AdfDhtmlSelectBooleanCheckboxPeer.__getInlineEditableTextElement(rootDomElement)
+};

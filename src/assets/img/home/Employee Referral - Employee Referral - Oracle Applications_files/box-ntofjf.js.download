@@ -1,0 +1,315 @@
+AdfUIComponents.createComponentClass("AdfRichPanelBox", {componentType:"oracle.adf.RichPanelBox", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, "disclosureListener", {name:"disclosed", type:"Boolean", "default":true}, {name:"immediate", type:"Boolean", "default":false}, {name:"persist", type:"Array"}, {name:"dontPersist", type:"Array"}, 
+{name:"showDisclosure", type:"Boolean", "default":true}, {name:"showMaximize", type:"String", "default":"auto"}, "maximizeListener", {name:"maximized", type:"Boolean", "default":false}, {name:"contentDelivery", type:"String", "default":"lazyUncached"}, {name:"helpTopicId", type:"String"}, {name:"iconDelivery", type:"String", "default":"auto"}, {name:"text", type:"String"}, {name:"type", type:"String", "default":"default"}, {name:"showHeader", type:"String", "default":"ifNeeded"}, {name:"ramp", type:"String", 
+"default":"core"}, {name:"background", type:"String", "default":"default"}, {name:"icon", type:"String"}, {name:"contentStyle", type:"String"}, {name:"titleHalign", type:"String", "default":"start"}], eventNames:["disclosure"], superclass:AdfUIPanel});
+
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlPanelBoxPeer", false);
+AdfDhtmlPanelBoxPeer.DISCLOSURE_SUB_ID = "_afrDscl";
+AdfDhtmlPanelBoxPeer._INNER_SD_PEER = AdfRichUIPeer.createInnerPeerClassWithSubId(AdfDhtmlShowDisclosurePeer, "InnerPBShowDetailPeer", AdfDhtmlPanelBoxPeer.DISCLOSURE_SUB_ID);
+InnerPBShowDetailPeer.InitSubclass = function() {
+  AdfDhtmlTogglePeer.Config(this, {toggledStyleClass:"af|panelBox::disclosed-icon-style", untoggledStyleClass:"af|panelBox::undisclosed-icon-style"})
+};
+InnerPBShowDetailPeer.prototype.HandleClientSideToggle = function(disclosed) {
+  if(this.outerThis.GetContentDomElement()) {
+    if(InnerPBShowDetailPeer.superclass.HandleClientSideToggle.call(this, disclosed)) {
+      this.outerThis.__handleClientSideDisclosure(disclosed);
+      return true
+    }
+  }
+  return false
+};
+AdfDhtmlPanelBoxPeer.MAXIMIZE_SUB_ID = "_afrMax";
+AdfDhtmlPanelBoxPeer._INNER_MAXIMIZE_PEER = AdfRichUIPeer.createInnerPeerClassWithSubId(AdfDhtmlMaximizePeer, "InnerPBMaximizePeer", AdfDhtmlPanelBoxPeer.MAXIMIZE_SUB_ID);
+InnerPBMaximizePeer.InitSubclass = function() {
+  AdfDhtmlTogglePeer.Config(this, {toggledStyleClass:"af|panelBox::maximized-icon-style", untoggledStyleClass:"af|panelBox::unmaximized-icon-style"})
+};
+InnerPBMaximizePeer.prototype.HandleClientSideToggle = function(maximized) {
+  var outerThis = this.outerThis;
+  var contentDom = outerThis.GetContentDomElement();
+  if(contentDom) {
+    if(InnerPBMaximizePeer.superclass.HandleClientSideToggle.call(this, maximized)) {
+      outerThis.__handleClientSideMaximize(outerThis.getDomElement(), contentDom, maximized);
+      return true
+    }
+  }
+  return false
+};
+InnerPBMaximizePeer.prototype.ComponentMaximizedChanged = function(component, domElement, newValue, oldValue) {
+  var handled = InnerPBMaximizePeer.superclass.ComponentMaximizedChanged.call(this, component, domElement, newValue, oldValue);
+  if(newValue) {
+    component.setDisclosed(true)
+  }
+  return handled
+};
+InnerPBMaximizePeer.prototype.EventPropagatesToServer = function(isMaximized) {
+  return!this.outerThis.GetContentDomElement()
+};
+AdfDhtmlPanelBoxPeer.InitSubclass = function() {
+  AdfObject.ensureClassInitialization(AdfRichPanelBox);
+  AdfRichUIPeer.addComponentPropertyChanges(this, AdfRichPanelBox.DISCLOSED, AdfRichPanelBox.MAXIMIZED);
+  AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.CLICK_EVENT_TYPE, AdfUIInputEvent.KEY_UP_EVENT_TYPE, AdfDisclosureEvent.EVENT_TYPE, AdfMaximizeEvent.EVENT_TYPE);
+  this._DRAG_RECOGNIZER = new AdfPanelBoxDragRecognizer
+};
+AdfDhtmlPanelBoxPeer.prototype.Init = function(component) {
+  AdfDhtmlPanelBoxPeer.superclass.Init.call(this, component);
+  var outerId = component.getClientId();
+  var disclosureId = AdfRichUIPeer.CreateSubId(outerId, AdfDhtmlPanelBoxPeer.DISCLOSURE_SUB_ID);
+  var disclosureNode = AdfAgent.AGENT.getElementById(disclosureId);
+  if(disclosureNode) {
+    this._disclosurePeer = this.CreateDisclosurePeer(component)
+  }
+  var maximizeId = AdfRichUIPeer.CreateSubId(outerId, AdfDhtmlPanelBoxPeer.MAXIMIZE_SUB_ID);
+  var maximizeNode = AdfAgent.AGENT.getElementById(maximizeId);
+  if(maximizeNode) {
+    this._maximizePeer = this.CreateMaximizePeer(component)
+  }
+};
+AdfDhtmlPanelBoxPeer.prototype.CreateDisclosurePeer = function(component) {
+  return new AdfDhtmlPanelBoxPeer._INNER_SD_PEER(component, this)
+};
+AdfDhtmlPanelBoxPeer.prototype.CreateMaximizePeer = function(component) {
+  return new AdfDhtmlPanelBoxPeer._INNER_MAXIMIZE_PEER(component, this)
+};
+AdfDhtmlPanelBoxPeer.prototype.initialize = function(component) {
+  var disclosurePeer = this._disclosurePeer;
+  if(disclosurePeer) {
+    disclosurePeer.initialize(component)
+  }
+  var maximizePeer = this._maximizePeer;
+  if(maximizePeer) {
+    maximizePeer.initialize(component)
+  }
+  AdfDhtmlPanelBoxPeer.superclass.initialize.call(this, component)
+};
+AdfDhtmlPanelBoxPeer.prototype.InitDomElement = function(component, rootElement) {
+  AdfDhtmlPanelBoxPeer.superclass.InitDomElement.call(this, component, rootElement);
+  var contentDom = this.GetContentDomElement(rootElement);
+  if(contentDom) {
+    this._checkAnimateDisclosure(component, contentDom);
+    if(this._maximizePeer) {
+      this.__handleClientSideMaximize(rootElement, contentDom, component.getMaximized())
+    }
+  }
+};
+AdfDhtmlPanelBoxPeer.prototype.GetContentDomElement = function(rootElement) {
+  if(!rootElement) {
+    rootElement = this.getDomElement()
+  }
+  var centerId = AdfRichUIPeer.CreateSubId(rootElement.id, "content");
+  return AdfAgent.AGENT.getElementById(centerId)
+};
+AdfDhtmlPanelBoxPeer.prototype._checkAnimateDisclosure = function(component, contentDom) {
+  if(contentDom && contentDom.style.visibility == "hidden") {
+    var disclosedHeight = contentDom.style.height;
+    var contentOffsetHeight = disclosedHeight ? parseInt(disclosedHeight) : contentDom.offsetHeight;
+    var wrapper = contentDom.ownerDocument.createElement("div");
+    wrapper.style.overflow = "hidden";
+    wrapper.style.height = "1px";
+    contentDom.parentNode.replaceChild(wrapper, contentDom);
+    wrapper.appendChild(contentDom);
+    contentDom.style.visibility = "visible";
+    var animDuration = this._getAnimationDuration();
+    AdfDhtmlElementAnimator.animate(AdfDhtmlElementAnimator.FRAME_METHOD_CONSTANT_SPEED, animDuration, [{"element":wrapper, "properties":{"height":contentOffsetHeight}}], null, AdfDhtmlPanelBoxPeer._handleAfterDiscloseAnimate, [wrapper, contentDom], component)
+  }
+};
+AdfDhtmlPanelBoxPeer._handleAfterDiscloseAnimate = function(params) {
+  var wrapperDom = params[0];
+  var parentElement = wrapperDom.parentNode;
+  if(parentElement) {
+    var contentDom = params[1];
+    contentDom.style.height = wrapperDom.style.height;
+    parentElement.replaceChild(contentDom, wrapperDom)
+  }
+};
+AdfDhtmlPanelBoxPeer.prototype._getAnimationDuration = function() {
+  return parseInt(AdfPage.PAGE.getLookAndFeel().getSkinProperty("af|panelBox-tr-animation-duration"))
+};
+AdfDhtmlPanelBoxPeer.prototype._animateUndisclosure = function(event) {
+  var contentDom = this.GetContentDomElement();
+  var disclosedHeight = contentDom.style.height;
+  contentDom.style.overflow = "hidden";
+  var animDuration = this._getAnimationDuration();
+  var component = this.getComponent();
+  AdfDhtmlElementAnimator.animate(AdfDhtmlElementAnimator.FRAME_METHOD_CONSTANT_SPEED, animDuration, [{"element":contentDom, "properties":{"height":0}}], null, AdfDhtmlPanelBoxPeer._handleAfterUndiscloseAnimateStub, [component, event, disclosedHeight], component)
+};
+AdfDhtmlPanelBoxPeer._handleAfterUndiscloseAnimateStub = function(params) {
+  var component = params[0];
+  var peer = component.getPeer();
+  if(peer) {
+    peer.bind(component);
+    peer._handleAfterUndiscloseAnimate(params[1], params[2])
+  }
+};
+AdfDhtmlPanelBoxPeer.prototype._handleAfterUndiscloseAnimate = function(event, disclosedHeight) {
+  var component = this.getComponent();
+  if(!component.isDead()) {
+    var contentDom = this.GetContentDomElement();
+    if(contentDom) {
+      contentDom.style.visibility = "hidden"
+    }
+    component.HandleEvent.call(component, event);
+    AdfAssert.assert(!component.getDisclosed());
+    this.__handleClientSideDisclosure(false);
+    if(contentDom) {
+      var contentDomStyle = contentDom.style;
+      contentDomStyle.display = "none";
+      contentDomStyle.height = disclosedHeight ? disclosedHeight : ""
+    }
+  }
+};
+AdfDhtmlPanelBoxPeer.prototype.DispatchUncanceledComponentEvent = function(event) {
+  if(AdfPage.PAGE.isAnimationEnabled() && event.getType() == AdfDisclosureEvent.EVENT_TYPE && !event.isExpanded()) {
+    this._animateUndisclosure(event);
+    return true
+  }else {
+    return false
+  }
+};
+AdfDhtmlPanelBoxPeer.prototype.HandleComponentClick = function(componentEvent) {
+  var disclosurePeer = this._disclosurePeer;
+  if(disclosurePeer) {
+    disclosurePeer.HandleComponentClick(componentEvent)
+  }
+  var maximizePeer = this._maximizePeer;
+  if(maximizePeer) {
+    maximizePeer.HandleComponentClick(componentEvent)
+  }
+};
+AdfDhtmlPanelBoxPeer.prototype.HandleComponentKeyUp = function(componentEvent) {
+  var disclosurePeer = this._disclosurePeer;
+  if(disclosurePeer) {
+    disclosurePeer.HandleComponentKeyUp(componentEvent)
+  }
+  var maximizePeer = this._maximizePeer;
+  if(maximizePeer) {
+    maximizePeer.HandleComponentKeyUp(componentEvent)
+  }
+};
+AdfDhtmlPanelBoxPeer.prototype.HandleComponentDisclosure = function(componentEvent) {
+  var disclosurePeer = this._disclosurePeer;
+  if(disclosurePeer) {
+    disclosurePeer.HandleComponentDisclosure(componentEvent)
+  }
+};
+AdfDhtmlPanelBoxPeer.prototype.HandleComponentMaximize = function(componentEvent) {
+  var maximizePeer = this._maximizePeer;
+  if(maximizePeer) {
+    maximizePeer.HandleComponentMaximize(componentEvent)
+  }
+};
+AdfDhtmlPanelBoxPeer.prototype.ComponentDisclosedChanged = function(component, domElement, newValue, oldValue) {
+  var disclosurePeer = this._disclosurePeer;
+  if(disclosurePeer) {
+    return disclosurePeer.ComponentDisclosedChanged(component, domElement, newValue, oldValue)
+  }else {
+    return false
+  }
+};
+AdfDhtmlPanelBoxPeer.prototype.ComponentMaximizedChanged = function(component, domElement, newValue, oldValue) {
+  var maximizePeer = this._maximizePeer;
+  if(maximizePeer) {
+    return maximizePeer.ComponentMaximizedChanged(component, domElement, newValue, oldValue)
+  }else {
+    return false
+  }
+};
+AdfDhtmlPanelBoxPeer.prototype.__isEventForHeaderControls = function(nativeEvent) {
+  var clickForHeaderControls = false;
+  var disclosurePeer = this._disclosurePeer;
+  if(disclosurePeer) {
+    clickForHeaderControls |= disclosurePeer.isEventForButton(nativeEvent)
+  }
+  var maximizePeer = this._maximizePeer;
+  if(maximizePeer) {
+    clickForHeaderControls |= maximizePeer.isEventForButton(nativeEvent)
+  }
+  return clickForHeaderControls
+};
+AdfDhtmlPanelBoxPeer.prototype.getDefaultDragRecognizer = function(component) {
+  return AdfDhtmlPanelBoxPeer._DRAG_RECOGNIZER
+};
+AdfDhtmlPanelBoxPeer.prototype.__handleClientSideDisclosure = function(disclosed) {
+  var contentDom = this.GetContentDomElement();
+  var contentParent = contentDom.parentNode;
+  var contentDomStyle = contentDom.style;
+  var animationEnabled = AdfPage.PAGE.isAnimationEnabled();
+  if(disclosed) {
+    if(animationEnabled) {
+      contentDomStyle.visibility = "hidden"
+    }
+    contentDomStyle.display = "";
+    contentParent.style.display = ""
+  }else {
+    if(!animationEnabled) {
+      contentParent.style.display = "none";
+      contentDomStyle.display = "none"
+    }
+  }
+  var domElement = this.getDomElement();
+  var bottomElement = domElement.lastChild;
+  var stretched = AdfAgent.AGENT.getNodeName(bottomElement) == "DIV";
+  if(disclosed) {
+    if(stretched) {
+      bottomElement.style.top = ""
+    }
+    this._checkAnimateDisclosure(this.getComponent(), contentDom)
+  }else {
+    if(stretched) {
+      var topElement = domElement.firstChild;
+      var height = topElement.clientHeight;
+      bottomElement.style.top = height + "px"
+    }
+  }
+};
+AdfDhtmlPanelBoxPeer.prototype.__handleClientSideMaximize = function(rootDom, contentDom, maximized) {
+  AdfAssert.assertDomElement(rootDom);
+  AdfAssert.assertDomElement(contentDom);
+  AdfAssert.assertBoolean(maximized);
+  this._maximizePeer.__updateClientMaximize(rootDom, contentDom, maximized);
+  var disclosurePeer = this._disclosurePeer;
+  if(disclosurePeer) {
+    var disclosureElement = disclosurePeer.GetButtonElement();
+    if(disclosureElement) {
+      var disclosureStyle = disclosureElement.style;
+      if(maximized) {
+        disclosureStyle.display = "none"
+      }else {
+        disclosureStyle.display = "block"
+      }
+    }
+  }
+};
+function AdfPanelBoxDragRecognizer() {
+  this.Init()
+}
+AdfObject.createSubclass(AdfPanelBoxDragRecognizer, AdfDragRecognizer);
+AdfPanelBoxDragRecognizer.prototype.prepDrag = function(dndContext, dragSource, inputEvent) {
+  AdfAssert.assertPrototype(dragSource, AdfDragSource);
+  AdfAssert.assertPrototype(inputEvent, AdfUIInputEvent);
+  if(AdfAgent.AGENT.isDragPrepEvent(inputEvent)) {
+    var dragComponent = dragSource.getComponent();
+    AdfAssert.assertObject(dragComponent, "Unexpected null component.");
+    var dragPeer = dragComponent.getPeer();
+    var nativeEvent = inputEvent.getNativeEvent();
+    if(!dragPeer.__isEventForHeaderControls(nativeEvent)) {
+      AdfAssert.assert(dragPeer, "Unexpected null peer.");
+      dragPeer.bind(dragComponent);
+      var rootDom = dragPeer.getDomElement();
+      var headerTable = AdfDomUtils.getFirstChildElement(rootDom);
+      if(headerTable) {
+        var nodeName = AdfAgent.AGENT.getNodeName(headerTable);
+        if("TABLE" != nodeName) {
+          headerTable = AdfDomUtils.getFirstChildElement(headerTable);
+          nodeName = AdfAgent.AGENT.getNodeName(headerTable)
+        }
+        if("TABLE" == nodeName) {
+          var nativeTarget = inputEvent.getNativeEventTarget();
+          if(AdfDomUtils.isAncestorOrSelf(headerTable, nativeTarget)) {
+            return AdfPanelBoxDragRecognizer.superclass.prepDrag.apply(this, arguments)
+          }
+        }
+      }
+    }
+  }
+  return null
+};

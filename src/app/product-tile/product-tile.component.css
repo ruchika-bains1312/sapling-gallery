@@ -1,0 +1,26 @@
+.product-thumbnail{
+    width:200px;
+    height: 200px;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column; 
+    text-align: center;
+    margin:auto;
+    border: 2px solid grey;
+    word-wrap: break-word; 
+}
+.thumbnail{
+    max-width:120px;
+    max-height:130px;
+    margin-bottom:2px 0px;
+}
+.try_on{
+    color:white;
+    background-color: rgb(76, 211, 76);
+    top:-10px;
+}
+p{
+    font-size: 10px;
+}

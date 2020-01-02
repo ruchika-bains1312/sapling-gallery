@@ -1,0 +1,30 @@
+img{
+    vertical-align: middle;
+    border-style: none;
+    height: 530px;
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+    width: 1000px;
+    cursor: pointer;
+}
+
+
+  .right-arrow{
+    position:absolute;
+    top:50%;
+    left:77%;
+    z-index: 200;
+    
+  }
+  .left-arrow{
+    position:absolute;
+    top:50%;
+    left:17%;
+    z-index: 200;
+  }
+  .material-icons-two-tone{
+    font-size: 100px;
+    color: #fff;
+    cursor: pointer;
+  }

@@ -1,0 +1,6 @@
+<div class="product-thumbnail">
+    <img  class="thumbnail" [src]="_product.url">
+    <button id="tryon-event" class="try_on"(click)="setSelectedPlant()"> Try on</button>
+    <p>{{_product.title}} - {{_product.price | currency:'INR'}}</p>
+</div>
+

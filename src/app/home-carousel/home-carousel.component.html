@@ -1,0 +1,11 @@
+<div class="carousel-container">
+		<ng-container *ngFor="let img of img_list; let i = index">
+			<div (mouseover)="enterCarousel()" class="slider" *ngIf="current == i" @fade>
+                <mat-icon class="material-icons-two-tone left-arrow"> keyboard_arrow_left </mat-icon>       
+                    <img  [src]="img.url">
+                    <mat-icon (click) = "showNext()" class="material-icons-two-tone right-arrow"> keyboard_arrow_right </mat-icon>       
+                </div>
+        </ng-container>
+        <span (click) = "showPrevious()" class="glyphicon glyphicon-menu-left"></span>
+
+</div>

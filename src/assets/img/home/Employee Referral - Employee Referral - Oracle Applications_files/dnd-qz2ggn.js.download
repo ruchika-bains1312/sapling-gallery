@@ -1,0 +1,1146 @@
+function AdfDhtmlDnDContext() {
+  this.Init()
+}
+AdfObject.createSubclass(AdfDhtmlDnDContext, AdfDnDContext);
+AdfDhtmlDnDContext.prototype.Init = function() {
+  AdfDhtmlDnDContext.superclass.Init.call(this);
+  this._clearDrag();
+  this._dropTargetComponents = new Array;
+  this._isAndroid = AdfAgent.AGENT.getOS() == AdfAgent.ANDROID_OS
+};
+AdfDhtmlDnDContext.InitClass = function() {
+  var agent = AdfAgent.AGENT;
+  this._NOT_ALLOWED_CURSOR = agent.getCursor("not-allowed");
+  this._LINK_CURSOR = agent.getCursor("alias");
+  this._COPY_CURSOR = agent.getCursor("copy");
+  this._MOVE_CURSOR = agent.getCursor("default");
+  this._INHERIT_CURSOR = agent.getCursor("inherit")
+};
+AdfDhtmlDnDContext.prototype.__addComponentTarget = function(component) {
+  AdfAssert.assertPrototype(component, AdfUIComponent);
+  AdfAssert.assertPrototype(component.getDropTarget(), AdfDropTarget);
+  this._dropTargetComponents.push(component);
+  AdfLogger.LOGGER.finer("Add drop component", component, " New count:", this._dropTargetComponents.length)
+};
+AdfDhtmlDnDContext.prototype.__removeComponentTarget = function(component) {
+  AdfAssert.assertPrototype(component, AdfUIComponent);
+  var removedIndex = AdfCollections.removeArrayValue(this._dropTargetComponents, component);
+  AdfLogger.LOGGER.finer("Remove drop component", component, " New count:", this._dropTargetComponents.length);
+  AdfAssert.assert(removedIndex != -1, "Could not find component in components array");
+  var lastDropTarget = this._lastDropTarget;
+  if(lastDropTarget && lastDropTarget.getComponent() === component) {
+    this._lastDropTarget = null
+  }
+};
+AdfDhtmlDnDContext.prototype.__removeDragSource = function(component) {
+  AdfAssert.assertPrototype(component, AdfUIComponent);
+  var dragSource = this._dragSource;
+  if(dragSource) {
+    var sourceComponent = dragSource.getComponent();
+    if(sourceComponent == component) {
+      this._dragSource = null
+    }
+  }
+};
+AdfDhtmlDnDContext.prototype.isDragging = function() {
+  return this._draggingContext != null
+};
+AdfDhtmlDnDContext.prototype.__isDragPrepped = function() {
+  return this._prepContext != null
+};
+AdfDhtmlDnDContext.prototype.getDragSource = function() {
+  return this._dragSource
+};
+AdfDhtmlDnDContext.prototype.getTransferable = function() {
+  var draggingContext = this._draggingContext;
+  if(draggingContext) {
+    return draggingContext._transferable
+  }else {
+    return null
+  }
+};
+AdfDhtmlDnDContext.prototype.getSourceActions = function() {
+  var draggingContext = this._draggingContext;
+  if(draggingContext) {
+    return draggingContext._sourceActions
+  }else {
+    return AdfDnDContext.ACTION_NONE
+  }
+};
+AdfDhtmlDnDContext.prototype.getUserAction = function() {
+  var draggingContext = this._draggingContext;
+  if(draggingContext) {
+    return draggingContext._userAction
+  }else {
+    return AdfDnDContext.ACTION_NONE
+  }
+};
+AdfDhtmlDnDContext.prototype.setDropTargetProperty = function(name, value) {
+  AdfAssert.assertString(name);
+  var draggingContext = this._draggingContext;
+  AdfAssert.assert(draggingContext, "setDropTargetProperty only allowed when dragging");
+  AdfAssert.assertString(name);
+  var currTargetProperties = draggingContext._currDropProperties;
+  AdfAssert.assert(currTargetProperties, "setAdfDropTargetProperty only allowed when we have a possible DropTarget");
+  currTargetProperties[name] = value
+};
+AdfDhtmlDnDContext.prototype.getDropTargetProperty = function(name) {
+  AdfAssert.assertString(name);
+  var draggingContext = this._draggingContext;
+  AdfAssert.assert(draggingContext, "getDropTargetProperty only allowed when dragging");
+  var currTargetProperties = draggingContext._currDropProperties;
+  AdfAssert.assert(currTargetProperties, "getAdfDropTargetProperty only allowed when we have a possible DropTarget");
+  return currTargetProperties[name]
+};
+AdfDhtmlDnDContext.prototype.getTriggerEvent = function() {
+  var draggingContext = this._draggingContext;
+  if(draggingContext) {
+    return draggingContext._triggerEvent
+  }else {
+    return null
+  }
+};
+AdfDhtmlDnDContext.prototype.startDrag = function(triggerEvent, transferable, allowedActions, defaultAction, dragOverNode, cursorOffsetX, cursorOffsetY, cursor) {
+  AdfAssert.assertPrototype(triggerEvent, AdfDomUIInputEvent);
+  AdfAssert.assertPrototype(transferable, AdfTransferable);
+  AdfAssert.assert(this._draggingContext == null, "Already dragging");
+  AdfAssert.assertNumeric(allowedActions);
+  AdfAssert.assert(allowedActions != AdfDnDContext.ACTION_NONE, "At least one action must be allowed");
+  AdfAssert.assert((allowedActions & ~AdfDnDContext.ACTIONS_ALL) == 0, "allowedActions includes an undefined action flag");
+  var dragSource = this._dragSource;
+  this._dragSourceObj = dragSource.applyDragSourceState(triggerEvent);
+  if(defaultAction == undefined) {
+    defaultAction = allowedActions & AdfDnDContext.ACTION_MOVE ? AdfDnDContext.ACTION_MOVE : allowedActions & AdfDnDContext.ACTION_COPY ? AdfDnDContext.ACTION_COPY : AdfDnDContext.ACTION_LINK
+  }
+  AdfAssert.assert(defaultAction == AdfDnDContext.ACTION_MOVE || defaultAction == AdfDnDContext.ACTION_COPY || defaultAction == AdfDnDContext.ACTION_LINK, "defaultAction contains an invalid value");
+  AdfAssert.assert((allowedActions & defaultAction) != 0, "Default action not an allowed action");
+  AdfAssert.assertNumeric(cursorOffsetX);
+  AdfAssert.assertNumeric(cursorOffsetY);
+  if(cursor == "auto") {
+    cursor = null
+  }
+  var draggingContext = new Object;
+  draggingContext._triggerEvent = triggerEvent;
+  draggingContext._transferable = transferable;
+  draggingContext._sourceActions = allowedActions;
+  draggingContext._cursor = cursor;
+  draggingContext._userAction = AdfDnDContext.ACTION_NONE;
+  draggingContext._defaultAction = defaultAction;
+  draggingContext._autoscrollTimerID = null;
+  draggingContext._dropTarget = null;
+  draggingContext._lastDropTarget = null;
+  draggingContext._dropProperties = new Object;
+  draggingContext._currDropProperties = null;
+  draggingContext._lastMousePage = null;
+  this._draggingContext = draggingContext;
+  AdfAssert.assert(!this._pendingMouseUp);
+  this._pendingMouseUp = false;
+  AdfLogger.LOGGER.finer("start drag: transferable:", transferable);
+  if(dragOverNode) {
+    var dragger = this._getDragDiv();
+    var richPage = AdfPage.PAGE;
+    if(!dragOverNode.dir && richPage.getLocaleContext().isRightToLeft()) {
+      dragOverNode.dir = "rtl"
+    }
+    richPage.showFloatingDiv(dragger, dragOverNode);
+    var dragWidth = dragOverNode.offsetWidth;
+    var dragHeight = dragOverNode.offsetHeight;
+    draggingContext._dragWidth = dragWidth;
+    draggingContext._dragHeight = dragHeight;
+    draggingContext._originX = cursorOffsetX < 0 ? 0 : dragWidth < cursorOffsetX ? dragWidth : cursorOffsetX;
+    draggingContext._originY = cursorOffsetY < 0 ? 0 : dragHeight < cursorOffsetY ? dragHeight : cursorOffsetY
+  }else {
+    dragger = null;
+    draggingContext._dragWidth = 0;
+    draggingContext._dragHeight = 0;
+    draggingContext._originX = 0;
+    draggingContext._originY = 0
+  }
+  draggingContext._dragger = dragger;
+  AdfPage.PAGE.showGlassPane(this._getCaptureMap(), "no-drop")
+};
+AdfDhtmlDnDContext.prototype._abortDrag = function() {
+  AdfAssert.assert(this._dragSource, "Aborting drag from an invalid drag state");
+  AdfLogger.LOGGER.fine("Abort drag of:", this._dragSource);
+  var draggingContext = this._draggingContext;
+  if(draggingContext) {
+    draggingContext._userAction = AdfDnDContext.ACTION_NONE;
+    var dropTarget = draggingContext._dropTarget;
+    if(dropTarget) {
+      try {
+        dropTarget.dragExit(this)
+      }catch(e) {
+        AdfLogger.LOGGER.logErrorAsWarning(e, "DropTarget.dragExit() failed")
+      }
+      this._changeActiveDropCSSClass(dropTarget, false)
+    }
+    this._dragComplete(false)
+  }else {
+    if(this._prepContext) {
+      this._clearDrag()
+    }
+  }
+};
+AdfDhtmlDnDContext.prototype.__handleInputEvent = function(inputEvent) {
+  AdfAssert.assertPrototype(inputEvent, AdfUIInputEvent);
+  var logger = AdfLogger.LOGGER;
+  var draggingContext = this._draggingContext;
+  if(!draggingContext) {
+    if(!this._prepContext && AdfAgent.AGENT.isDragPrepEvent(inputEvent)) {
+      this._dragSource = this._findDragSource(inputEvent)
+    }
+    var dragSource = this._dragSource;
+    if(dragSource) {
+      var recognizer = dragSource.getDragRecognizer();
+      prepContext = this._prepContext;
+      if(prepContext) {
+        AdfPage.PAGE.getGlassPane();
+        var abort = true;
+        try {
+          abort = recognizer.abortPrep(prepContext, inputEvent)
+        }catch(e) {
+          logger.logErrorAsWarning(e, "Recognizer abort prep failed")
+        }
+        if(abort) {
+          this._abortDrag();
+          var originalEvent = prepContext.triggerEvent;
+          var targetNode = originalEvent.getNativeEventTarget();
+          if(AdfFocusUtils.isFocusable(targetNode) && !AdfFocusUtils.containsFocus()) {
+            AdfFocusUtils.focusElement(targetNode)
+          }
+        }else {
+          logger.finest("recognize drag for ", prepContext, " ", inputEvent);
+          var triggerEvent = null;
+          try {
+            triggerEvent = recognizer.recognizeDrag(prepContext, inputEvent)
+          }catch(e) {
+            logger.logErrorAsWarning(e, "Drag recognition failed")
+          }
+          if(triggerEvent) {
+            this._prepContext = null;
+            logger.fine("initiate drag of ", dragSource, " for event:", triggerEvent);
+            AdfAgent.AGENT.disableUserSelect(AdfPage.PAGE.getDocument().body);
+            try {
+              dragSource.initiateDrag(this, triggerEvent)
+            }catch(e) {
+              logger.logErrorAsWarning(e, "Drag initiation failed");
+              throw e;
+            }
+            if(this._draggingContext != null) {
+              this._trackDrag(inputEvent.getNativeEvent())
+            }
+          }
+        }
+      }else {
+        var prepContext = null;
+        try {
+          prepContext = recognizer.prepDrag(this, dragSource, inputEvent)
+        }catch(e) {
+          logger.logErrorAsWarning(e, "Drag prep failed")
+        }
+        if(prepContext) {
+          logger.finer("drag prep context:", prepContext);
+          this._prepContext = prepContext
+        }
+      }
+    }
+  }
+};
+AdfDhtmlDnDContext.prototype._setCursor = function(newCursor) {
+  AdfAssert.assertString(newCursor);
+  AdfLogger.LOGGER.finer("Set cursor to:", newCursor);
+  AdfAgent.AGENT.setCursor(AdfPage.PAGE.getGlassPane(), newCursor)
+};
+AdfDhtmlDnDContext.prototype._findDragSource = function(inputEvent) {
+  AdfAssert.assertPrototype(inputEvent, AdfUIInputEvent);
+  var newDragSource = this._findContainingDragSource(inputEvent);
+  AdfAssert.assertPrototypeOrNull(newDragSource, AdfDragSource);
+  var oldDragSource = this._dragSource;
+  AdfAssert.assertPrototypeOrNull(newDragSource, AdfDragSource);
+  if(newDragSource != oldDragSource) {
+    AdfLogger.LOGGER.finest("Change drag source from:", oldDragSource, " to ", newDragSource);
+    return newDragSource
+  }
+  return oldDragSource
+};
+AdfDhtmlDnDContext.prototype._findContainingDragSource = function(inputEvent) {
+  AdfAssert.assertPrototype(inputEvent, AdfUIInputEvent);
+  var currComponent = inputEvent.getSource();
+  AdfAssert.assertPrototype(currComponent, AdfUIComponent);
+  var richPopupType = "oracle.adf.RichPopup";
+  while(currComponent != null && richPopupType !== currComponent.getComponentType()) {
+    var dragSource = currComponent.getDragSource();
+    if(dragSource) {
+      try {
+        if(dragSource.isAvailable(this, inputEvent)) {
+          return dragSource
+        }
+      }catch(e) {
+        AdfLogger.LOGGER.logErrorAsWarning(e, "dragSource.isAvailable() failed")
+      }
+    }
+    currComponent = currComponent.getParent()
+  }
+  return null
+};
+AdfDhtmlDnDContext.prototype._findDropTarget = function(oldDropTarget, pageX, pageY) {
+  var dropTargetComponents = this._dropTargetComponents;
+  var dropTargetCount = dropTargetComponents.length;
+  for(var i = dropTargetCount - 1;i >= 0;i--) {
+    var currComponent = dropTargetComponents[i];
+    if(AdfDhtmlDnDContext._pointInDropTarget(currComponent, pageX, pageY)) {
+      return currComponent.getDropTarget()
+    }
+  }
+  return null
+};
+AdfDhtmlDnDContext._pointInDropTarget = function(component, pageX, pageY) {
+  var domElement = AdfRichUIPeer.getDomElementForComponent(component);
+  return domElement ? AdfAgent.AGENT.pointInElementOrChildBounds(domElement, pageX, pageY) : false
+};
+AdfDhtmlDnDContext.prototype._getDragDiv = function() {
+  if(!this._dragDiv) {
+    var richPage = AdfPage.PAGE;
+    var zIndex = AdfDhtmlZOrderManager.getMaxZIndex();
+    this._dragDiv = richPage.createFloatingDiv(richPage.getDocument().body, zIndex, "DragContent");
+    this._dragDiv.dir = "ltr"
+  }
+  return this._dragDiv
+};
+AdfDhtmlDnDContext.prototype._clearDrag = function() {
+  AdfAgent.AGENT.enableUserSelect(AdfPage.PAGE.getDocument().body);
+  this._dragSource = null;
+  this._prepContext = null;
+  this._draggingContext = null
+};
+AdfDhtmlDnDContext.prototype.toDebugString = function() {
+  return AdfDhtmlDnDContext.superclass.toDebugString.call(this) + "[" + " dragSource:" + this._dragSource + " prepContext:" + this._prepContext + " drag context:" + this._draggingContext + " drag div:" + this._dragDiv + "]"
+};
+AdfDhtmlDnDContext.prototype._trackDrag = function(event) {
+  if(this._pendingMouseUp) {
+    return
+  }
+  var draggingContext = this._draggingContext;
+  AdfAssert.assert(draggingContext, "Not in dragging state");
+  var agent = AdfAgent.AGENT;
+  var mousePage = agent.getMousePosition(event);
+  draggingContext._lastMousePage = mousePage;
+  var oldDropTarget = draggingContext._dropTarget;
+  var lastDropTarget = this._lastDropTarget;
+  var proposedDropTarget = oldDropTarget ? oldDropTarget : lastDropTarget ? lastDropTarget : null;
+  var newDropTarget = this._findDropTarget(proposedDropTarget, mousePage.x, mousePage.y);
+  AdfAssert.assertPrototypeOrNull(newDropTarget, AdfDropTarget);
+  var dragSource = this._dragSource;
+  var logger = AdfLogger.LOGGER;
+  if(newDropTarget != oldDropTarget) {
+    logger.finest("Attempt to change drop target changed from:", oldDropTarget, " to ", newDropTarget);
+    if(oldDropTarget) {
+      this._setUserAction(AdfDnDContext.ACTION_NONE, false)
+    }
+    if(newDropTarget) {
+      this._lastDropTarget = newDropTarget;
+      var dropTargetID = newDropTarget.getComponent().getClientId();
+      var dropProperties = draggingContext._dropProperties;
+      var currDropProperties = dropProperties[dropTargetID];
+      if(!currDropProperties) {
+        currDropProperties = new Object;
+        dropProperties[dropTargetID] = currDropProperties
+      }
+      draggingContext._currDropProperties = currDropProperties;
+      this._acceptDrag(newDropTarget, event, "acceptDragEnter", mousePage);
+      if(draggingContext._userAction != AdfDnDContext.ACTION_NONE) {
+        if(AdfAssert.DEBUG) {
+          logger.finest("New drop target:", newDropTarget)
+        }
+        draggingContext._dropTarget = newDropTarget;
+        this._changeActiveDropCSSClass(newDropTarget, true);
+        try {
+          dragSource.dragEnter(this)
+        }catch(e) {
+          logger.logErrorAsWarning(e, "dragSource.isAvailable() failed")
+        }
+      }
+    }
+  }else {
+    if(newDropTarget) {
+      this._acceptDrag(newDropTarget, event, "acceptDragOver", mousePage);
+      if(draggingContext._userAction != AdfDnDContext.ACTION_NONE) {
+        try {
+          dragSource.dragOver(this)
+        }catch(e) {
+          logger.logErrorAsWarning(e, "dragSource.dragOver() failed")
+        }
+      }
+    }
+  }
+  var dragX = mousePage.x - draggingContext._originX;
+  if(dragX < 0) {
+    dragX = 0
+  }
+  var dragY = mousePage.y - draggingContext._originY;
+  if(dragY < 0) {
+    dragY = 0
+  }
+  if(draggingContext._dragger) {
+    var draggerStyle = draggingContext._dragger.style;
+    var dragRight = dragX + draggingContext._dragWidth;
+    var dragBottom = dragY + draggingContext._dragHeight;
+    var window = agent.getDomWindow();
+    dragRight -= agent.getWindowScrollWidth(window);
+    dragBottom -= agent.getWindowScrollHeight(window);
+    if(dragRight > 0) {
+      dragX -= dragRight
+    }
+    if(dragBottom > 0) {
+      dragY -= dragBottom
+    }
+    draggerStyle.left = dragX + "px";
+    draggerStyle.top = dragY + "px"
+  }
+  draggingContext._dragPageX = dragX;
+  draggingContext._dragPageY = dragY
+};
+AdfDhtmlDnDContext.prototype._acceptDrag = function(dropTarget, event, dropTargetFuncName, mousePage) {
+  AdfAssert.assertPrototype(dropTarget, AdfDropTarget);
+  if(mousePage == null) {
+    mousePage = AdfAgent.AGENT.getMousePosition(event)
+  }
+  var proposedAction = AdfDnDContext.ACTION_NONE;
+  var draggingContext = this._draggingContext;
+  AdfAssert.assert(draggingContext, "No dragging context");
+  if(event.ctrlKey && event.shiftKey) {
+    proposedAction = AdfDnDContext.ACTION_LINK
+  }else {
+    if(event.ctrlKey) {
+      proposedAction = AdfDnDContext.ACTION_COPY
+    }else {
+      if(event.shiftKey) {
+        proposedAction = AdfDnDContext.ACTION_MOVE
+      }
+    }
+  }
+  proposedAction &= draggingContext._sourceActions;
+  if(proposedAction == AdfDnDContext.ACTION_NONE) {
+    proposedAction = draggingContext._defaultAction
+  }
+  var logger = AdfLogger.LOGGER;
+  logger.finest("Initial Proposed action:", proposedAction);
+  var userAction = AdfDnDContext.ACTION_NONE;
+  try {
+    userAction = dropTarget[dropTargetFuncName](this, proposedAction, mousePage.x, mousePage.y);
+    if(AdfAssert.DEBUG) {
+      AdfDnDContext.assertUserAction(userAction)
+    }
+  }catch(e) {
+    logger.logErrorAsWarning(e, "DropTarget." + dropTargetFuncName + "() failed")
+  }
+  logger.finest("User action:", userAction);
+  this._setUserAction(userAction, "acceptDropActionChanged" == dropTargetFuncName)
+};
+AdfDhtmlDnDContext.prototype._setUserAction = function(newUserAction, deliverDropActionChanged) {
+  if(AdfAssert.DEBUG) {
+    AdfDnDContext.assertUserAction(newUserAction)
+  }
+  var draggingContext = this._draggingContext;
+  var oldUserAction = draggingContext._userAction;
+  if(newUserAction != oldUserAction) {
+    var logger = AdfLogger.LOGGER;
+    draggingContext._userAction = newUserAction;
+    var newCursor = "auto";
+    switch(newUserAction) {
+      case AdfDnDContext.ACTION_NONE:
+        newCursor = AdfDhtmlDnDContext._NOT_ALLOWED_CURSOR;
+        break;
+      case AdfDnDContext.ACTION_LINK:
+        newCursor = AdfDhtmlDnDContext._LINK_CURSOR;
+        break;
+      case AdfDnDContext.ACTION_COPY:
+        newCursor = AdfDhtmlDnDContext._COPY_CURSOR;
+        break;
+      case AdfDnDContext.ACTION_MOVE:
+        newCursor = AdfDhtmlDnDContext._MOVE_CURSOR;
+        break
+    }
+    logger.finer("New cursor:", newCursor);
+    this._setCursor(newCursor);
+    if(newUserAction != AdfDnDContext.ACTION_NONE) {
+      if(deliverDropActionChanged) {
+        try {
+          this._dragSource.dropActionChanged(this)
+        }catch(e) {
+          logger.logErrorAsWarning(e, "dragSource.dropActionChanged() failed")
+        }
+      }
+    }else {
+      if(oldUserAction != AdfDnDContext.ACTION_NONE) {
+        try {
+          this._dragSource.dragExit(this)
+        }catch(e) {
+          logger.logErrorAsWarning(e, "dragSource.dragExit() failed")
+        }
+        var dropTarget = draggingContext._dropTarget;
+        AdfAssert.assert(dropTarget, "Must have drop target if had user action");
+        try {
+          dropTarget.dragExit(this)
+        }catch(e) {
+          logger.logErrorAsWarning(e, "dropTarget.dragExit() failed")
+        }
+        logger.finer("Clear out old dropTarget:", dropTarget);
+        this._changeActiveDropCSSClass(dropTarget, false);
+        draggingContext._dropTarget = null;
+        draggingContext._currDropProperties = null
+      }
+    }
+  }
+};
+AdfDhtmlDnDContext.prototype._changeActiveDropCSSClass = function(dropTarget, addClass) {
+  AdfAssert.assertPrototype(dropTarget, AdfDropTarget);
+  var targetComponent = dropTarget.getComponent();
+  var targetPeer = targetComponent.getPeer();
+  if(targetPeer != null) {
+    targetPeer.bind(targetComponent);
+    var func = addClass ? AdfDomUtils.addCSSClassName : AdfDomUtils.removeCSSClassName;
+    func(targetPeer.getDomElement(), AdfRichUIPeer.DROP_TARGET_STYLECLASS)
+  }else {
+    AdfAssert.assert(addClass === false, "Orphanned component when adding CSS style")
+  }
+};
+AdfDhtmlDnDContext.prototype._doDrop = function(event) {
+  if(this._pendingMouseUp) {
+    AdfPage.PAGE.hideGlassPane(this._getCaptureMap());
+    this._pendingMouseUp = false;
+    return
+  }
+  var draggingContext = this._draggingContext;
+  AdfAssert.assert(draggingContext, "Not in dragging state");
+  if(draggingContext._userAction != AdfDnDContext.ACTION_NONE) {
+    var dropTarget = draggingContext._dropTarget;
+    AdfAssert.assert(dropTarget, "Must have a valid drop target to drop");
+    var mousePage = AdfAgent.AGENT.getMousePosition(event);
+    var result = AdfDnDContext.ACTION_NONE;
+    try {
+      result = dropTarget.drop(this, draggingContext._userAction, mousePage.x, mousePage.y);
+      this._changeActiveDropCSSClass(dropTarget, false);
+      if(AdfAssert.DEBUG) {
+        AdfDnDContext.assertUserAction(result)
+      }
+    }catch(e) {
+      AdfLogger.LOGGER.logErrorAsWarning(e, "dropTarget.drop() failed")
+    }
+    this._setUserAction(result, false)
+  }
+  this._dragComplete(true)
+};
+AdfDhtmlDnDContext.prototype._dragComplete = function(mouseReleased) {
+  AdfAssert.assert(this._draggingContext, "Not in dragging state");
+  var dragSource = this._dragSource;
+  if(dragSource != null) {
+    dragSource.clearDragSourceState(this._dragSourceObj);
+    delete this._dragSourceObj;
+    try {
+      dragSource.dragDropEnd(this, this.getUserAction())
+    }catch(e) {
+      AdfLogger.LOGGER.logErrorAsWarning(e, "dragSource.dragDropEnd() failed")
+    }
+  }
+  var agent = AdfAgent.AGENT;
+  var richPage = AdfPage.PAGE;
+  richPage.hideFloatingDiv(this._getDragDiv());
+  this._clearDrag();
+  if(agent.getPlatform() == AdfAgent.IE_PLATFORM && !mouseReleased) {
+    this._pendingMouseUp = true
+  }else {
+    richPage.hideGlassPane(this._getCaptureMap())
+  }
+};
+AdfDhtmlDnDContext.prototype._abortEvent = function(event) {
+  if(this._pendingMouseUp) {
+    return
+  }
+  this._abortDrag();
+  AdfAgent.eatEventCallback(event)
+};
+AdfDhtmlDnDContext.prototype._checkAbort = function(event) {
+  if(this._pendingMouseUp) {
+    return
+  }
+  AdfAssert.assert(this._draggingContext, "Not in dragging state");
+  if(event.keyCode == 27) {
+    this._abortEvent(event)
+  }else {
+    var draggingContext = this._draggingContext;
+    var dropTarget = draggingContext._dropTarget;
+    if(dropTarget) {
+      this._acceptDrag(dropTarget, event, "acceptDropActionChanged", draggingContext._lastMousePage)
+    }
+  }
+};
+AdfDhtmlDnDContext._trackDragCallback = function(event) {
+  AdfPage.PAGE.getDnDContext()._trackDrag(event);
+  AdfAgent.eatEventCallback(event);
+  return false
+};
+AdfDhtmlDnDContext._doDropCallback = function(event) {
+  AdfPage.PAGE.getDnDContext()._doDrop(event);
+  AdfAgent.eatEventCallback(event);
+  return false
+};
+AdfDhtmlDnDContext._checkAbortCallback = function(event) {
+  return AdfPage.PAGE.getDnDContext()._checkAbort(event)
+};
+AdfDhtmlDnDContext._abortCallback = function(event) {
+  return AdfPage.PAGE.getDnDContext()._abortEvent(event)
+};
+AdfDhtmlDnDContext._updateDragOptionsCallback = function(event) {
+  var dndContext = AdfPage.PAGE.getDnDContext();
+  var dropTarget = dndContext._dropTarget;
+  if(dropTarget) {
+    dndContext._acceptDrag(dropTarget, event, "acceptDropActionChanged", this._lastMousePage)
+  }
+};
+AdfDhtmlDnDContext._autoscrollCallback = function() {
+  AdfPage.PAGE.getDnDContext()._autoscroll()
+};
+AdfDhtmlDnDContext._abortIfOutsideWindowCallback = function(event) {
+  if(event.pageX === undefined) {
+    return true
+  }
+  var docBoundsElement = document.documentElement;
+  if(docBoundsElement.offsetHeight == 0) {
+    docBoundsElement = document.body
+  }
+  if(!AdfAgent.AGENT.pointInElementBounds(docBoundsElement, event.clientX, event.clientY)) {
+    AdfPage.PAGE.getDnDContext()._abortEvent(event);
+    return false
+  }else {
+    return true
+  }
+};
+AdfDhtmlDnDContext.prototype._getCaptureMap = function() {
+  if(AdfDhtmlDnDContext._CAPTURE_MAP == null) {
+    var agent = AdfAgent.AGENT;
+    if(agent.isTouchFirstDevice()) {
+      var isAndroid = this._isAndroid;
+      if(isAndroid) {
+        AdfDhtmlDnDContext._CAPTURE_MAP = {"touchmove":AdfDhtmlDnDContext._trackDragCallback, "touchend":AdfDhtmlDnDContext._doDropCallback, "touchstart":AdfDhtmlDnDContext._abortCallback}
+      }else {
+        AdfDhtmlDnDContext._CAPTURE_MAP = {"touchmove":AdfDhtmlDnDContext._trackDragCallback, "touchend":AdfDhtmlDnDContext._doDropCallback, "touchcancel":AdfDhtmlDnDContext._abortCallback, "touchstart":AdfDhtmlDnDContext._abortCallback}
+      }
+    }else {
+      AdfDhtmlDnDContext._CAPTURE_MAP = {"mouseout":AdfDhtmlDnDContext._abortIfOutsideWindowCallback, "mousemove":AdfDhtmlDnDContext._trackDragCallback, "mouseup":AdfDhtmlDnDContext._doDropCallback, "keydown":AdfDhtmlDnDContext._checkAbortCallback, "touchmove":AdfDhtmlDnDContext._trackDragCallback, "touchend":AdfDhtmlDnDContext._doDropCallback, "touchcancel":AdfDhtmlDnDContext._abortCallback, "touchstart":AdfDhtmlDnDContext._abortCallback, "keyup":AdfDhtmlDnDContext._updateDragOptionsCallback}
+    }
+  }
+  return AdfDhtmlDnDContext._CAPTURE_MAP
+};
+AdfDhtmlDnDContext._CAPTURE_MAP = null;
+AdfPage.PAGE.__clearDnDContext();
+
+function AdfAttributeDragSource(propertyName) {
+  this.Init(propertyName, AdfDnDContext.ACTION_COPY, AdfDnDContext.ACTION_COPY)
+}
+AdfObject.createSubclass(AdfAttributeDragSource, AdfDragSource);
+AdfAttributeDragSource.prototype.Init = function(propertyName, allowedActions, defaultAction) {
+  AdfAttributeDragSource.superclass.Init.call(this, allowedActions, defaultAction);
+  AdfAssert.assertString(propertyName);
+  this._propertyName = propertyName;
+  this._checkIfNeedsValidate = "value" == propertyName
+};
+AdfAttributeDragSource.prototype.toDebugString = function() {
+  return AdfAttributeDragSource.superclass.toDebugString.call(this) + " propertyName:" + this._propertyName
+};
+AdfAttributeDragSource.prototype.isAvailable = function(dndContext, inputEvent) {
+  AdfAssert.assertPrototype(dndContext, AdfDnDContext);
+  AdfAssert.assertPrototype(inputEvent, AdfUIInputEvent);
+  var component = this.getComponent();
+  if(component) {
+    var propertyValue = component.getProperty(this._propertyName);
+    return propertyValue != null
+  }else {
+    return false
+  }
+};
+AdfAttributeDragSource.prototype.GetDragTransferable = function(inputEvent) {
+  var transferable = null;
+  var component = this.getComponent();
+  if(component) {
+    if(this._checkIfNeedsValidate && AdfUIEditableValue.prototype.isPrototypeOf(component)) {
+      component.validate()
+    }
+    var propertyValue = component.getProperty(this._propertyName);
+    if(propertyValue != null) {
+      AdfLogger.LOGGER.finer("Create Transferable for AdfAttributeDragSource with attr=", this._propertyName, ", value=", propertyValue);
+      transferable = AdfObjectTransferable.createSingleObjectTransferable(propertyValue)
+    }
+  }
+  return transferable
+};
+
+function AdfAttributeDropTarget(propertyName) {
+  this.Init(propertyName, AdfDnDContext.ACTION_COPY)
+}
+AdfObject.createSubclass(AdfAttributeDropTarget, AdfDropTarget);
+AdfAttributeDropTarget.prototype.Init = function(propertyName, allowedActions, defaultAction) {
+  AdfAttributeDropTarget.superclass.Init.call(this, allowedActions, defaultAction);
+  AdfAssert.assertString(propertyName);
+  this._propertyName = propertyName;
+  this._checkIfNeedsValidate = "value" == propertyName
+};
+AdfAttributeDropTarget.prototype.toDebugString = function() {
+  return AdfAttributeDropTarget.superclass.toDebugString.call(this) + " propertyName:" + this._propertyName
+};
+AdfAttributeDropTarget.prototype.drop = function(dndContext, proposedAction, pageX, pageY) {
+  AdfAssert.assert(proposedAction == AdfDnDContext.ACTION_COPY);
+  AdfLogger.LOGGER.finer("drop:", this);
+  var propertyValues = dndContext.getTransferable().getTransferData(this._getTargetFlavor());
+  if(propertyValues != null && propertyValues.length == 1) {
+    var component = this.getComponent();
+    if(this._checkIfNeedsValidate && AdfUIEditableValue.prototype.isPrototypeOf(component)) {
+      component.validate()
+    }
+    var propertyValue = propertyValues[0];
+    var propertyName = this._propertyName;
+    AdfLogger.LOGGER.finer("drop type:", typeof propertyValue);
+    AdfLogger.LOGGER.finer("drop: on ", component, " set property '", propertyName, "' to '", propertyValue, "'");
+    try {
+      component.setProperty(propertyName, propertyValue);
+      return AdfDnDContext.ACTION_COPY
+    }catch(e) {
+      AdfLogger.LOGGER.info("drop failed with:", e)
+    }
+  }
+  return AdfDnDContext.ACTION_NONE
+};
+AdfAttributeDropTarget.prototype.GetAllowedActions = function(dndContext) {
+  return AdfDnDContext.ACTION_COPY
+};
+AdfAttributeDropTarget.prototype.GetAllowedFlavors = function(dndContext) {
+  var targetFlavor = this._getTargetFlavor();
+  if(targetFlavor != null) {
+    return[targetFlavor]
+  }else {
+    return null
+  }
+};
+AdfAttributeDropTarget.prototype._getTargetFlavor = function() {
+  var component = this.getComponent();
+  var propertyName = this._propertyName;
+  var propertyInfo = component.getPropertyKeys()[propertyName];
+  if(propertyInfo) {
+    return AdfDataFlavor.getDataFlavorForClassName(propertyInfo.type)
+  }else {
+    var propertyValue = component.getProperty(propertyName);
+    if(propertyValue != null) {
+      return AdfDataFlavor.getObjectFlavor(propertyValue)
+    }else {
+      return AdfDataFlavor.ANY_FLAVOR
+    }
+  }
+};
+
+function AdfComponentDragSource(discriminant) {
+  this.Init(discriminant)
+}
+AdfObject.createSubclass(AdfComponentDragSource, AdfDragSource);
+AdfComponentDragSource._UICOMPONENT_FLAVOR = AdfDataFlavor.getDataFlavorForClass(AdfUIComponent);
+AdfComponentDragSource.prototype.Init = function(discriminant) {
+  AdfComponentDragSource.superclass.Init.call(this, AdfDnDContext.ACTION_MOVE, AdfDnDContext.ACTION_MOVE);
+  this._dataFlavor = discriminant ? AdfDataFlavor.getDataFlavorForClass(AdfUIComponent, discriminant) : AdfComponentDragSource._UICOMPONENT_FLAVOR
+};
+AdfComponentDragSource.prototype.isAvailable = function(dndContext, inputEvent) {
+  AdfAssert.assertPrototype(dndContext, AdfDnDContext);
+  AdfAssert.assertPrototype(inputEvent, AdfUIInputEvent);
+  return this.getComponent() != null
+};
+AdfComponentDragSource.prototype.GetDragTransferable = function(inputEvent) {
+  var transferable = null;
+  var component = this.getComponent();
+  if(component) {
+    transferable = AdfObjectTransferable.createSingleObjectTransferable(component, this._dataFlavor)
+  }
+  return transferable
+};
+
+function AdfStampedDragSource(allowedActions, defaultAction, modelName) {
+  if(arguments.length) {
+    this.Init(allowedActions, defaultAction, modelName)
+  }
+}
+AdfObject.createSubclass(AdfStampedDragSource, AdfDragSource);
+AdfStampedDragSource.prototype.Init = function(allowedActions, defaultAction, modelName) {
+  AdfStampedDragSource.superclass.Init.call(this, allowedActions, defaultAction);
+  this._modelName = modelName
+};
+AdfStampedDragSource.prototype.getModelName = function() {
+  return this._modelName
+};
+AdfStampedDragSource.prototype.isAvailable = function(dndContext, inputEvent) {
+  AdfAssert.assertPrototype(dndContext, AdfDnDContext);
+  AdfAssert.assertPrototype(inputEvent, AdfUIInputEvent);
+  if(AdfAssert.DEBUG) {
+    AdfDnDContext.assertUserAction(dndContext.getUserAction())
+  }
+  if(this.AreDraggedRowKeysAvailable(inputEvent)) {
+    return true
+  }else {
+    var peerTransferable = AdfStampedDragSource.superclass.GetDragTransferable.call(this, inputEvent);
+    return peerTransferable != null
+  }
+};
+AdfStampedDragSource.prototype.getRowKeyDataFlavor = function() {
+  var component = this.getComponent();
+  if(component) {
+    var modelName = this._modelName;
+    if(modelName) {
+      return AdfDataFlavor.getRowKeyDataFlavor(modelName)
+    }
+  }
+  return null
+};
+AdfStampedDragSource.prototype.GetDragTransferable = function(inputEvent) {
+  var peerTransferable = AdfStampedDragSource.superclass.GetDragTransferable.call(this, inputEvent);
+  var component = this.getComponent();
+  var modelName = this._modelName;
+  if(modelName && modelName.length) {
+    var rowKeys = this._getRowKeys(inputEvent);
+    AdfAssert.assertArrayOrNull(rowKeys);
+    if(rowKeys) {
+      var transferFlavors = new Array;
+      var transferObjects = new Array;
+      if(peerTransferable != null) {
+        var peerFlavors = peerTransferable.getTransferDataFlavors();
+        var flavorCount = peerFlavors.length;
+        for(var i = 0;i < flavorCount;i++) {
+          var currFlavor = peerFlavors[i];
+          transferFlavors.push(currFlavor);
+          transferObjects.push(peerTransferable.getTransferData(currFlavor))
+        }
+      }
+      var rowKeyDataFlavor = AdfDataFlavor.getRowKeyDataFlavor(modelName);
+      transferObjects.push(rowKeys);
+      transferFlavors.push(rowKeyDataFlavor);
+      return new AdfObjectTransferable(transferObjects, transferFlavors)
+    }
+  }
+  return peerTransferable
+};
+AdfStampedDragSource.prototype.GetDragOffset = function(inputEvent) {
+  var rowKeys = this._getRowKeys(inputEvent);
+  if(rowKeys) {
+    return this.GetDragOffsetForRowKeys(inputEvent, rowKeys)
+  }else {
+    return{x:inputEvent.getOffsetX(), y:inputEvent.getOffsetY()}
+  }
+};
+AdfStampedDragSource.prototype.GetDragOffsetForRowKeys = function(inputEvent, rowKeys) {
+  AdfAssert.assertArray(rowKeys);
+  return this.getComponent().getPeer().getDragOffsetForRowKeys(inputEvent, rowKeys)
+};
+AdfStampedDragSource.prototype.GetDragOverFeedback = function(inputEvent) {
+  AdfAssert.assertPrototype(inputEvent, AdfUIInputEvent);
+  var rowKeys = this._getRowKeys(inputEvent);
+  if(rowKeys) {
+    return this.GetDragOverFeedbackForRowKeys(rowKeys)
+  }else {
+    return AdfStampedDragSource.superclass.GetDragOverFeedback.call(this, inputEvent)
+  }
+};
+AdfStampedDragSource.prototype.applyDragReadyState = function(inputEvent) {
+  AdfAssert.assertPrototype(inputEvent, AdfUIInputEvent);
+  var rowKeys = this._getRowKeys(inputEvent);
+  if(rowKeys) {
+    return this.ApplyDragReadyStateForRowKeys(inputEvent, rowKeys)
+  }else {
+    return AdfStampedDragSource.superclass.applyDragReadyState.call(this, inputEvent)
+  }
+};
+AdfStampedDragSource.prototype.ApplyDragReadyStateForRowKeys = function(inputEvent, rowKeys) {
+  AdfAssert.assertArray(rowKeys);
+  var c = this.getComponent();
+  var peer = c.getPeer();
+  if(peer.applyDragReadyStateForRowKeys) {
+    return peer.applyDragReadyStateForRowKeys(c, inputEvent, rowKeys)
+  }else {
+    return AdfStampedDragSource.superclass.applyDragReadyState.call(this, inputEvent)
+  }
+};
+AdfStampedDragSource.prototype.applyDragSourceState = function(inputEvent) {
+  AdfAssert.assertPrototype(inputEvent, AdfDomUIInputEvent);
+  var rowKeys = this._getRowKeys(inputEvent);
+  if(rowKeys) {
+    return this.ApplyDragSourceStateForRowKeys(inputEvent, rowKeys)
+  }else {
+    return AdfStampedDragSource.superclass.applyDragSourceState.call(this, inputEvent)
+  }
+};
+AdfStampedDragSource.prototype.ApplyDragSourceStateForRowKeys = function(inputEvent, rowKeys) {
+  AdfAssert.assertArray(rowKeys);
+  var c = this.getComponent();
+  var peer = c.getPeer();
+  if(peer.applyDragSourceStateForRowKeys) {
+    return peer.applyDragSourceStateForRowKeys(c, inputEvent, rowKeys)
+  }else {
+    return AdfStampedDragSource.superclass.applyDragSourceState.call(this, inputEvent)
+  }
+};
+AdfStampedDragSource.prototype.GetDragOverFeedbackForRowKeys = function(rowKeys) {
+  AdfAssert.assertArray(rowKeys);
+  return this.getComponent().getPeer().getDragNodeForRowKeys(rowKeys)
+};
+AdfStampedDragSource.prototype.GetDraggedRowKeys = function(mouseRowKey) {
+  AdfAssert.assert(mouseRowKey);
+  return[mouseRowKey]
+};
+AdfStampedDragSource.prototype.AreDraggedRowKeysAvailable = function(inputEvent) {
+  return this._getRowKeys(inputEvent) != null
+};
+AdfStampedDragSource.prototype._getRowKeys = function(inputEvent) {
+  var peer = this.getComponent().getPeer();
+  var mouseRowKey = peer.getRowKeyForEvent(inputEvent);
+  if(mouseRowKey) {
+    return this.GetDraggedRowKeys(mouseRowKey)
+  }else {
+    return null
+  }
+};
+
+function AdfTableDragSource(allowedActions, defaultAction, modelName) {
+  if(arguments.length) {
+    this.Init(allowedActions, defaultAction, modelName)
+  }
+}
+AdfObject.createSubclass(AdfTableDragSource, AdfStampedDragSource);
+AdfTableDragSource.prototype.GetDraggedRowKeys = function(mouseRowKey) {
+  AdfAssert.assert(mouseRowKey);
+  var component = this.getComponent();
+  var state = component.getSelectedRowKeys();
+  if(state != null && state["afrSelectAll"] == null && state[mouseRowKey] != null) {
+    var selectedRows = [];
+    for(var rowKey in state) {
+      selectedRows.push(rowKey)
+    }
+    return selectedRows
+  }else {
+    return[mouseRowKey]
+  }
+};
+AdfTableDragSource.prototype.AreDraggedRowKeysAvailable = function(inputEvent) {
+  var peer = this.getComponent().getPeer();
+  var mouseRowKey = peer.getRowKeyForEvent(inputEvent);
+  return mouseRowKey != null
+};
+AdfTableDragSource.prototype.isAvailable = function(dndContext, inputEvent) {
+  AdfAssert.assertPrototype(dndContext, AdfDnDContext);
+  AdfAssert.assertPrototype(inputEvent, AdfUIInputEvent);
+  var target = inputEvent.getNativeEventTarget();
+  var peer = this.getComponent().getPeer();
+  if(!peer.isDragAvailable(target)) {
+    return false
+  }
+  return AdfTableDragSource.superclass.isAvailable.call(this, dndContext, inputEvent)
+};
+
+function AdfStampedDropTarget(allowedActions, modelName) {
+  if(arguments.length) {
+    this.Init(allowedActions, modelName)
+  }
+}
+AdfObject.createSubclass(AdfStampedDropTarget, AdfDropTarget);
+AdfStampedDropTarget.prototype.Init = function(allowedActions, modelName) {
+  AdfStampedDropTarget.superclass.Init.call(this);
+  AdfAssert.assertNumber(allowedActions);
+  AdfAssert.assert(allowedActions != AdfDnDContext.ACTION_NONE, "allowedActions must be specified");
+  AdfAssert.assert((allowedActions & ~AdfDnDContext.ACTIONS_ALL) == 0, "Invalid allowedActions:" + allowedActions);
+  this._allowedActions = allowedActions;
+  this._modelName = modelName
+};
+AdfStampedDropTarget.prototype.toDebugString = function() {
+  AdfAssert.assertNumber(this._allowedActions);
+  return AdfStampedDropTarget.superclass.toDebugString.call(this) + " allowedActions:" + this._allowedActions.toString(2)
+};
+AdfStampedDropTarget.prototype.dragExit = function(dndContext) {
+  AdfLogger.LOGGER.finer("dragExit:", this);
+  this._cleanUpDragFeedback(dndContext, true)
+};
+AdfStampedDropTarget.prototype.drop = function(dndContext, proposedAction, pageX, pageY) {
+  AdfLogger.LOGGER.finer("drop:", this);
+  this._cleanUpDragFeedback(dndContext, false);
+  var peer = this.getComponent().getPeer();
+  var hints = dndContext.getDropTargetProperty(AdfStampedDropTarget._ROWKEY_HINTS);
+  if(hints == null) {
+    hints = {};
+    dndContext.setDropTargetProperty(AdfStampedDropTarget._ROWKEY_HINTS, hints)
+  }
+  peer.getRowKeyAndOrientationFromHints(pageX, pageY, hints);
+  return this.DropOnRowKey(dndContext, proposedAction, pageX, pageY, hints[AdfStampedDropTarget.ROW_KEY], hints[AdfStampedDropTarget.DROP_ORIENTATION])
+};
+AdfStampedDropTarget.prototype.DropOnRowKey = function(dndContext, proposedAction, pageX, pageY, rowKey, dropOrientation) {
+  AdfLogger.LOGGER.fine("Queing Drop Event with row key:", rowKey);
+  var dropEvent = new AdfDropEvent(this.getComponent(), dndContext.getDragSource(), dndContext.getTransferable(), proposedAction, pageX, pageY, dropOrientation, rowKey);
+  dropEvent.queue();
+  return proposedAction
+};
+AdfStampedDropTarget.prototype.getRowKeyDataFlavor = function() {
+  var component = this.getComponent();
+  if(component) {
+    var modelName = this._modelName;
+    if(modelName) {
+      return AdfDataFlavor.getRowKeyDataFlavor(modelName)
+    }
+  }
+  return null
+};
+AdfStampedDropTarget.prototype.AcceptDrag = function(dndContext, possibleActions, proposedAction, pageX, pageY) {
+  var userAction = AdfDnDContext.ACTION_NONE;
+  var originalProposedAction = proposedAction;
+  var rowKey = null;
+  var rowKeyBounds = null;
+  var propLookRowKey = null;
+  proposedAction = AdfStampedDropTarget.superclass.AcceptDrag.call(this, dndContext, possibleActions, proposedAction, pageX, pageY);
+  if(proposedAction == AdfDnDContext.ACTION_NONE) {
+    proposedAction = this.AcceptDragOverrideIfRejectedByFlavor(dndContext, originalProposedAction)
+  }
+  if(proposedAction != AdfDnDContext.ACTION_NONE) {
+    var component = this.getComponent();
+    var peer = component.getPeer();
+    var hints = dndContext.getDropTargetProperty(AdfStampedDropTarget._ROWKEY_HINTS);
+    if(hints == null) {
+      hints = {};
+      dndContext.setDropTargetProperty(AdfStampedDropTarget._ROWKEY_HINTS, hints)
+    }
+    var lastRowKey = hints.lastRowKey;
+    peer.getRowKeyAndOrientationFromHints(pageX, pageY, hints);
+    propLookRowKey = rowKey = hints.rowKey;
+    if(propLookRowKey == null) {
+      propLookRowKey = AdfStampedDropTarget._NULL_ROW_KEY
+    }
+    var rowKeyData = hints[propLookRowKey];
+    var cachedAction;
+    var actionKey = AdfStampedDropTarget._ACTION_KEYS[proposedAction];
+    if(rowKeyData == null) {
+      rowKeyData = new Object;
+      hints[propLookRowKey] = rowKeyData;
+      rowKeyBounds = peer.getRowKeyBounds(rowKey);
+      rowKeyData[AdfStampedDropTarget._BOUNDS_KEY] = rowKeyBounds;
+      cachedAction = null
+    }else {
+      cachedAction = rowKeyData[actionKey];
+      rowKeyBounds = rowKeyData[AdfStampedDropTarget._BOUNDS_KEY]
+    }
+    if(cachedAction != null) {
+      userAction = cachedAction
+    }else {
+      AdfLogger.LOGGER.finer("Check AdfStampedDropTarget rowKey:", rowKey);
+      var dragSource = dndContext.getDragSource();
+      var dragSourceComp = dragSource != null ? dragSource.getComponent() : null;
+      if(dragSourceComp === component && this.NeedsRowKeyCollectionCheck() && proposedAction == AdfDnDContext.ACTION_MOVE) {
+        var transferable = dndContext.getTransferable();
+        if(transferable) {
+          var sourceRowKeys = transferable.getTransferData(this.getRowKeyDataFlavor());
+          if(AdfCollections.indexOf(sourceRowKeys, rowKey) != -1) {
+            proposedAction = AdfDnDContext.ACTION_NONE
+          }
+        }
+      }
+      userAction = proposedAction;
+      rowKeyData[actionKey] = userAction
+    }
+    peer.showDragFeedback(dndContext, rowKey, userAction, lastRowKey, pageX, pageY, false);
+    hints[AdfStampedDropTarget.HINT_LAST_ROWKEY] = rowKey;
+    hints[AdfStampedDropTarget.HINT_LAST_ROWKEY_BOUNDS] = rowKeyBounds;
+    hints[AdfStampedDropTarget.HINT_LAST_DROP_ORIENTATION] = hints[AdfStampedDropTarget.DROP_ORIENTATION]
+  }
+  return userAction
+};
+AdfStampedDropTarget.prototype.NeedsRowKeyCollectionCheck = function() {
+  return true
+};
+AdfStampedDropTarget.prototype.AcceptDragOverrideIfRejectedByFlavor = function(dndContext, originalProposedAction) {
+  return AdfDnDContext.ACTION_NONE
+};
+AdfStampedDropTarget.prototype.GetAllowedFlavors = function(dndContext) {
+  var dataFlavors = null;
+  var rowKeyDataFlavor = this.getRowKeyDataFlavor();
+  if(rowKeyDataFlavor) {
+    dataFlavors = new Array;
+    dataFlavors.push(rowKeyDataFlavor)
+  }
+  return dataFlavors
+};
+AdfStampedDropTarget.prototype.GetAllowedActions = function(dndContext) {
+  return this._allowedActions
+};
+AdfStampedDropTarget.prototype._cleanUpDragFeedback = function(dndContext, dragExit) {
+  var hints = dndContext.getDropTargetProperty(AdfStampedDropTarget._ROWKEY_HINTS);
+  var lastRowKey = hints ? hints[AdfStampedDropTarget.HINT_LAST_ROWKEY] : null;
+  if(dragExit && hints) {
+    hints[AdfStampedDropTarget.HINT_LAST_ROWKEY] = null
+  }
+  this.getComponent().getPeer().showDragFeedback(dndContext, null, AdfDnDContext.ACTION_NONE, lastRowKey, null, null, dragExit)
+};
+AdfStampedDropTarget._ROWKEY_HINTS = "StampedDropTarget:hints";
+AdfStampedDropTarget.HINT_LAST_ROWKEY = "lastRowKey";
+AdfStampedDropTarget.HINT_LAST_ROWKEY_BOUNDS = "lastRowKeyBounds";
+AdfStampedDropTarget.HINT_LAST_DROP_ORIENTATION = "lastDropOrientation";
+AdfStampedDropTarget.DROP_ORIENTATION = "dropOrientation";
+AdfStampedDropTarget.ROW_KEY = "rowKey";
+AdfStampedDropTarget._BOUNDS_KEY = "bounds";
+AdfStampedDropTarget._NULL_ROW_KEY = "null_rk";
+AdfStampedDropTarget._ACTION_KEYS = [null, "COPY", "MOVE", null, "LINK"];
+
+function AdfTableDropTarget(allowedActions, modelName) {
+  if(arguments.length) {
+    this.Init(allowedActions, modelName)
+  }
+}
+AdfObject.createSubclass(AdfTableDropTarget, AdfStampedDropTarget);
+
+function AdfBasicDropTarget(dropHandler, allowedActions, allowedFlavors) {
+  if(!AdfCollections.isArray(allowedFlavors)) {
+    AdfAssert.assertPrototype(allowedFlavors, AdfDataFlavor);
+    allowedFlavors = [allowedFlavors]
+  }
+  this.Init(dropHandler, allowedActions, allowedFlavors)
+}
+AdfObject.createSubclass(AdfBasicDropTarget, AdfDropTarget);
+AdfBasicDropTarget.prototype.Init = function(dropHandler, allowedActions, allowedFlavors) {
+  AdfBasicDropTarget.superclass.Init.call(this);
+  AdfAssert.assertFunctionOrNull(dropHandler, "dropHandler function required");
+  AdfAssert.assertNumber(allowedActions);
+  AdfAssert.assert(allowedActions != AdfDnDContext.ACTION_NONE, "allowedActions must be specified");
+  AdfAssert.assert((allowedActions & ~AdfDnDContext.ACTIONS_ALL) == 0, "Invalid allowedActions:" + allowedActions);
+  AdfAssert.assertArray(allowedFlavors, "At least one flavor must be allowed");
+  AdfAssert.assertPrototype(allowedFlavors[0], AdfDataFlavor);
+  this._dropHandler = dropHandler;
+  this._allowedActions = allowedActions;
+  this._allowedFlavors = allowedFlavors
+};
+AdfBasicDropTarget.prototype.drop = function(dndContext, proposedAction, pageX, pageY) {
+  var dropHandler = this._dropHandler;
+  var userAction;
+  if(dropHandler != null) {
+    userAction = dropHandler.call(this, dndContext, proposedAction, pageX, pageY)
+  }else {
+    userAction = proposedAction
+  }
+  AdfAssert.assertNumber(userAction);
+  if(userAction == AdfDnDContext.ACTION_NONE) {
+    return userAction
+  }
+  AdfAssert.assert((userAction & ~AdfDnDContext.ACTIONS_ALL) == 0, "Invalid userAction:" + userAction);
+  return AdfBasicDropTarget.superclass.drop.call(this, dndContext, userAction, pageX, pageY)
+};
+AdfBasicDropTarget.prototype.toDebugString = function() {
+  var debugString = AdfBasicDropTarget.superclass.toDebugString.call(this);
+  var allowedActons = this._allowedActions;
+  if(allowedActons) {
+    debugString += " allowedActions:" + allowedActons.toString(2)
+  }
+  debugString += " allowedFlavors:" + this._allowedFlavors;
+  return debugString
+};
+AdfBasicDropTarget.prototype.GetAllowedFlavors = function(dndContext) {
+  return this._allowedFlavors
+};
+AdfBasicDropTarget.prototype.GetAllowedActions = function(dndContext) {
+  return this._allowedActions
+};

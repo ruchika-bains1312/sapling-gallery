@@ -1,0 +1,1547 @@
+AdfUIComponents.createComponentClass("AdfUIShowOne", {componentType:"org.apache.myfaces.trinidad.ShowOne"});
+
+AdfUIComponents.createComponentClass("AdfRichPanelSpringboard", {componentType:"oracle.adf.RichPanelSpringboard", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"persist", type:"Array"}, {name:"dontPersist", type:"Array"}, {name:"contentDelivery", type:"String", "default":"lazyUncached"}, {name:"displayMode", type:"String", 
+"default":"strip"}, {name:"immediate", type:"Boolean", "default":false}, "springboardChangeListener"], eventNames:["springboardChange"], superclass:AdfUIShowOne});
+
+AdfRichPanelSpringboard.InitClass = function() {
+  AdfUIComponent.InitClass.call(this);
+  AdfUIComponent.SetDisconnectedProperty(AdfRichPanelSpringboard, "displayMode")
+};
+
+function AdfSpringboardChangeEvent(source, newDisplayMode) {
+  this.Init(source, newDisplayMode)
+}
+AdfObject.createSubclass(AdfSpringboardChangeEvent, AdfComponentEvent);
+AdfSpringboardChangeEvent.EVENT_TYPE = "springboardChange";
+AdfSpringboardChangeEvent.prototype.Init = function(source, newDisplayMode) {
+  AdfAssert.assertPrototype(source, AdfUIComponent);
+  AdfSpringboardChangeEvent.superclass.Init.call(this, source, AdfSpringboardChangeEvent.EVENT_TYPE);
+  this._newDisplayMode = newDisplayMode;
+  this.setRoot(source)
+};
+AdfSpringboardChangeEvent.prototype.getNewDisplayMode = function() {
+  return this._newDisplayMode
+};
+AdfSpringboardChangeEvent.prototype.isValidationNeeded = function() {
+  if(this._newDisplayMode == "strip") {
+    return false
+  }
+  return true
+};
+AdfSpringboardChangeEvent.prototype.isImmediate = function() {
+  return this.getSource().getImmediate()
+};
+AdfSpringboardChangeEvent.prototype.AddMarshalledProperties = function(properties) {
+  properties.newDisplayMode = this._newDisplayMode
+};
+AdfSpringboardChangeEvent.prototype.propagatesToServer = function() {
+  return true
+};
+AdfSpringboardChangeEvent.prototype.IsDeleveryDiscrete = function() {
+  return true
+};
+AdfSpringboardChangeEvent.queue = function(component, newDisplayMode) {
+  (new AdfSpringboardChangeEvent(component, newDisplayMode)).queue(true)
+};
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlPanelSpringboardPeer", false);
+AdfDhtmlPanelSpringboardPeer.InitSubclass = function() {
+  AdfRichUIPeer.addComponentPropertyChanges(this, AdfRichPanelSpringboard.DISPLAY_MODE);
+  AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.CLICK_EVENT_TYPE, AdfUIInputEvent.MOUSE_DOWN_EVENT_TYPE, AdfUIInputEvent.MOUSE_UP_EVENT_TYPE);
+  if(!AdfAgent.AGENT.isTouchFirstDevice()) {
+    AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.MOUSE_IN_EVENT_TYPE, AdfUIInputEvent.MOUSE_OUT_EVENT_TYPE)
+  }
+  this._EXPANDO_ROWKEY_ATTRIBUTE = "data-ptKey";
+  this._EXPANDO_DISCLOSED_TAB_ID = "data-disTab";
+  this._EXPANDO_CANVAS_ATTRIBUTE = "data-cnv";
+  this._TAB_HEADER = "tabh";
+  this._TAB_BODY_VIEWPORT = "tabbvp";
+  this._TAB_BODY_CANVAS = "tabbcvs";
+  this._TAB_BODY_A = "tabba";
+  this._TAB_BODY_B = "tabbb";
+  this._TAB_BODY_C = "tabbc";
+  this._TAB_SUB_ID_ABOVE = "ti";
+  this._TAB_SUB_ID_ICON = "icon";
+  this._SUB_ID_BODY_DIV = "bodyDiv";
+  this._SUB_ID_ITEMS_DIV = "itemsDiv";
+  this._CLICKABLE_TAB_ITEM = "tia";
+  this._SELECTED_POINTER_DIV = "sbsp";
+  this._CONVEYOR_BELT_CONTAINER_ID = "cbc";
+  this._CONVEYOR_BELT_CONTENT_ID = "cbct";
+  this._START_CONVEYOR_BELT_INDICATOR = "scbic";
+  this._END_CONVEYOR_BELT_INDICATOR = "ecbic";
+  this._OPT_RND_ID = "optRnd";
+  this._STRIP_CLASS = "p_AFStrip";
+  this._GRID_CLASS = "p_AFGrid";
+  this._SELECTED_CLASS = "p_AFSelected";
+  this._FLOW_STYLECLASS = "p_AFFlow";
+  this._BUSY_CLASS = "p_AFBusy";
+  this._SWIPE_THRESHOLD = 0.33
+};
+AdfDhtmlPanelSpringboardPeer.prototype.InitDomElement = function(component, domElement) {
+  AdfDhtmlPanelSpringboardPeer.superclass.InitDomElement.call(this, component, domElement);
+  var agent = AdfAgent.getAgent();
+  var clientId = component.getClientId();
+  var headerId = AdfRichUIPeer.CreateSubId(clientId, AdfDhtmlPanelSpringboardPeer._TAB_HEADER);
+  this._headerDiv = agent.getElementById(headerId);
+  var selectedPointerId = AdfRichUIPeer.CreateSubId(clientId, AdfDhtmlPanelSpringboardPeer._SELECTED_POINTER_DIV);
+  this._selectedPointerDiv = agent.getElementById(selectedPointerId);
+  var tabBodyCanvasId = AdfRichUIPeer.CreateSubId(clientId, AdfDhtmlPanelSpringboardPeer._TAB_BODY_CANVAS);
+  this._bodyCanvasDiv = agent.getElementById(tabBodyCanvasId);
+  var tabBodyViewportId = AdfRichUIPeer.CreateSubId(clientId, AdfDhtmlPanelSpringboardPeer._TAB_BODY_VIEWPORT);
+  this._bodyViewportDiv = agent.getElementById(tabBodyViewportId);
+  this._cBeltContainer = agent.getElementById(AdfRichUIPeer.CreateSubId(clientId, AdfDhtmlPanelSpringboardPeer._CONVEYOR_BELT_CONTAINER_ID));
+  this._cBeltContent = agent.getElementById(AdfRichUIPeer.CreateSubId(clientId, AdfDhtmlPanelSpringboardPeer._CONVEYOR_BELT_CONTENT_ID));
+  this._startCBeltI = agent.getElementById(AdfRichUIPeer.CreateSubId(clientId, AdfDhtmlPanelSpringboardPeer._START_CONVEYOR_BELT_INDICATOR));
+  this._endCBeltI = agent.getElementById(AdfRichUIPeer.CreateSubId(clientId, AdfDhtmlPanelSpringboardPeer._END_CONVEYOR_BELT_INDICATOR));
+  this._optRndId = AdfRichUIPeer.CreateSubId(clientId, AdfDhtmlPanelSpringboardPeer._OPT_RND_ID);
+  this._isScreenReaderMode = AdfPage.PAGE.isScreenReaderMode();
+  var lookAndFeel = AdfPage.PAGE.getLookAndFeel();
+  var isRTL = AdfDhtmlPanelSpringboardPeer._isRTL();
+  this._shiftField = isRTL ? "right" : "left";
+  if(!this._isScreenReaderMode) {
+    this._hideSelectedPointer = "true" == lookAndFeel.getSkinProperty("af|panelSpringboard-tr-hide-selected-pointer");
+    if(this._hideSelectedPointer) {
+      this._selectedPointerDiv.style.display = "none"
+    }
+    this._cBeltNavWidth = 0;
+    this._cBeltMoving = false;
+    this._cBeltShift = {};
+    this._conveyorSlideAnimationDuration = parseInt(lookAndFeel.getSkinProperty("af|panelSpringboard-tr-conveyor-slide-animation-duration"), 10);
+    if(isNaN(this._conveyorSlideAnimationDuration)) {
+      this._conveyorSlideAnimationDuration = 0
+    }
+    this._currCBeltIndex = 0;
+    this._initialDisplay = true;
+    this._swipeStartPosition = 0;
+    this._swipeMovingPosition = 0;
+    var peer = this;
+    agent.addBubbleEventListener(this._startCBeltI, "click", function() {
+      peer._shiftConveyor(!isRTL)
+    });
+    agent.addBubbleEventListener(this._endCBeltI, "click", function() {
+      peer._shiftConveyor(isRTL)
+    });
+    agent.addBubbleEventListener(this._cBeltContent, "keyup", this.createCallback(this._processCbeltTab));
+    agent.addBubbleEventListener(this._cBeltContent, "touchstart", function(event) {
+      peer._swipeStartPosition = event.pageX
+    });
+    agent.addBubbleEventListener(this._cBeltContent, "touchmove", function(event) {
+      peer._swipeMovingPosition = event.pageX
+    });
+    agent.addBubbleEventListener(this._cBeltContent, "touchend", function(event) {
+      if(peer._isCBeltActivated()) {
+        if(!peer._swipeMovingPosition || !peer._swipeStartPosition) {
+          return
+        }
+        if(peer._swipeMovingPosition < peer._swipeStartPosition && peer._endCBeltI.style.display == "inline-block") {
+          peer._shiftConveyor(false)
+        }else {
+          if(peer._startCBeltI.style.display == "inline-block") {
+            peer._shiftConveyor(true)
+          }
+        }
+      }
+      peer._swipeStartPosition = 0;
+      peer._swipeMovingPosition = 0
+    });
+    var cap = agent.getCapabilities()[AdfAgent.CAP_TOUCH_SCREEN];
+    if(cap && cap != AdfAgent.CAP_TOUCH_SCREEN_NONE) {
+      this._initBodySwiping(agent, this._bodyViewportDiv)
+    }
+    var dMode = component.getProperty(AdfRichPanelSpringboard.DISPLAY_MODE);
+    if(dMode === "strip") {
+      var iconElems = this._getChildElements(this._headerDiv);
+      this._cBeltContent.style.height = iconElems[0].offsetHeight + "px";
+      this._cBeltContent.style.overflow = "hidden";
+      this._cBeltContainer.style.overflow = "hidden"
+    }
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype.ComponentDisplayModeChanged = function(component, domElement, newValue, oldValue) {
+  if(component.getProperty("_ignoreNextDisplayModeChange")) {
+    component.setProperty("_ignoreNextDisplayModeChange", false, false, false);
+    return
+  }
+  var springboardEvent = new AdfSpringboardChangeEvent(component, newValue);
+  springboardEvent.queue(true);
+  if(springboardEvent.isCanceled()) {
+    component.setProperty("_ignoreNextDisplayModeChange", true, false, false);
+    component.setProperty("displayMode", oldValue, false, false)
+  }else {
+    var iconElems = this._getChildElements(this._headerDiv);
+    var isFlow = AdfDomUtils.containsCSSClassName(domElement, AdfDhtmlPanelSpringboardPeer._FLOW_STYLECLASS);
+    if(newValue == "grid") {
+      AdfDomUtils.addCSSClassName(domElement, AdfDhtmlPanelSpringboardPeer._GRID_CLASS);
+      AdfDomUtils.removeCSSClassName(domElement, AdfDhtmlPanelSpringboardPeer._STRIP_CLASS);
+      this._setToNormalIcon(iconElems);
+      if(isFlow) {
+        domElement.style.height = ""
+      }
+      if(this._isCBeltActivated()) {
+        this._hideCBelt()
+      }
+      this._selectedPointerDiv.style.display = "none";
+      this._animateFromStripToGrid(iconElems, domElement.offsetWidth, domElement.offsetHeight)
+    }else {
+      if(newValue == "strip") {
+        this._bodyViewportDiv.style.visibility = "hidden";
+        AdfDomUtils.addCSSClassName(domElement, AdfDhtmlPanelSpringboardPeer._STRIP_CLASS);
+        AdfDomUtils.removeCSSClassName(domElement, AdfDhtmlPanelSpringboardPeer._GRID_CLASS);
+        var middleCanvasDiv = isFlow ? null : this._getCanvasDiv("middle");
+        this._setBusy(domElement, middleCanvasDiv);
+        if(isFlow) {
+          domElement.style.width = "auto";
+          domElement.style.height = "auto"
+        }
+        delete this._haveShowDetailItemsInStrip;
+        this._animateFromGridToStrip(iconElems, domElement.offsetWidth)
+      }
+    }
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype.HandleComponentMouseOver = function(componentEvent) {
+  this._handleIcon(componentEvent, true, false)
+};
+AdfDhtmlPanelSpringboardPeer.prototype.HandleComponentMouseDown = function(componentEvent) {
+  this._handleIcon(componentEvent, false, true)
+};
+AdfDhtmlPanelSpringboardPeer.prototype.HandleComponentMouseUp = function(componentEvent) {
+  this._handleIcon(componentEvent, false, false)
+};
+AdfDhtmlPanelSpringboardPeer.prototype.HandleComponentMouseOut = function(componentEvent) {
+  this._handleIcon(componentEvent, false, false)
+};
+AdfDhtmlPanelSpringboardPeer.prototype.HandleComponentClick = function(componentEvent) {
+  if(!componentEvent.isCanceled() && componentEvent.isLeftButtonPressed()) {
+    var component = this.getComponent();
+    var target = componentEvent.getNativeEventTarget();
+    var clickedElement = this._getRowKeyElementFromDomElement(target, this.getDomElement());
+    var childId = this._getRowKeyFromDomElement(clickedElement);
+    if(childId == null) {
+      return
+    }
+    componentEvent.cancel();
+    var clickedComponent = AdfPage.PAGE.findComponent(childId);
+    if(clickedComponent.getDisabled()) {
+      return
+    }
+    if(component.getProperty(AdfRichPanelSpringboard.DISPLAY_MODE) != "grid") {
+      this._discloseClickedComponent(component, clickedComponent, clickedElement)
+    }else {
+      var oldDisclosedComponent = this._getOldDisclosedChildComponent(component);
+      if(clickedComponent != oldDisclosedComponent) {
+        if(clickedComponent != null) {
+          var clickedClientId = clickedComponent.getClientId();
+          this._changeSelected(clickedClientId, true)
+        }
+        if(oldDisclosedComponent != null) {
+          var oldClientId = oldDisclosedComponent.getClientId();
+          this._changeSelected(oldClientId, false)
+        }
+      }
+      component.setProperty(AdfRichPanelSpringboard.DISPLAY_MODE, "strip", false, false);
+      this._discloseItem(clickedComponent.getClientId())
+    }
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._discloseItem = function(clickedId) {
+  var clickedComponent = AdfPage.PAGE.findComponent(clickedId);
+  clickedComponent.setDisclosed(true)
+};
+AdfDhtmlPanelSpringboardPeer.prototype.TabReselected = function(component) {
+};
+AdfDhtmlPanelSpringboardPeer.prototype.NewTabSelected = function(component) {
+};
+AdfDhtmlPanelSpringboardPeer.prototype.ReplaceDomElement = function(newElement, oldElement) {
+  var agent = AdfAgent.AGENT;
+  if(this._canvasOfSelectedItem) {
+    delete this._canvasOfSelectedItem
+  }
+  if(this._isOptimizedRenderTarget(newElement)) {
+    var domElement = this.getDomElement();
+    if(domElement != null) {
+      this._removeBusy(domElement)
+    }
+    var newChildren = newElement.childNodes;
+    var bodyChildrenElement;
+    var itemsChildrenElement;
+    if(newChildren != null) {
+      if(newChildren.length < 2) {
+        AdfLogger.LOGGER.severe("Error getting the body and item divs of the optRnd block.")
+      }
+      var bodyFound = false;
+      for(var i = 0;i < newChildren.length;i++) {
+        if(newChildren[i].nodeType == 1) {
+          if(!bodyFound) {
+            bodyChildrenElement = newChildren[i];
+            var id = bodyChildrenElement.id;
+            if(id != null && id.indexOf(AdfDhtmlPanelSpringboardPeer._SUB_ID_BODY_DIV) == -1) {
+              AdfLogger.LOGGER.severe("Error getting the body div of the optRnd block.")
+            }
+            bodyFound = true
+          }else {
+            itemsChildrenElement = newChildren[i];
+            var id = itemsChildrenElement.id;
+            if(id != null && id.indexOf(AdfDhtmlPanelSpringboardPeer._SUB_ID_ITEMS_DIV) == -1) {
+              AdfLogger.LOGGER.severe("Error getting the item div of the optRnd block.")
+            }
+          }
+        }
+      }
+      var bodyChildren = bodyChildrenElement.childNodes;
+      var bodyChildCount = bodyChildren.length;
+      var disclosedShowDetailItemDiv;
+      for(var i = bodyChildCount - 1;i > -1;--i) {
+        var newBodyChild = bodyChildren[i];
+        if(newBodyChild == undefined) {
+          AdfLogger.LOGGER.severe("Error getting the child of the optRnd block, index: " + i)
+        }else {
+          if(newBodyChild.nodeType == 1) {
+            var showDetailDiv = AdfDomUtils.getFirstChildElement(newBodyChild);
+            if(!("none" == newBodyChild.style.display)) {
+              disclosedShowDetailItemDiv = newBodyChild;
+              this._setOldDisclosedChild(showDetailDiv.id)
+            }
+            bodyChildrenElement.removeChild(newBodyChild);
+            var targetNode = agent.getElementById(showDetailDiv.id);
+            if(targetNode != null) {
+              page.removeComponentsInSubtree(targetNode);
+              agent.elementsRemoved(targetNode);
+              agent.replaceNode(newBodyChild, targetNode.parentNode);
+              agent.elementsAdded(showDetailDiv)
+            }
+            this._haveShowDetailItemsInStrip = true
+          }
+        }
+      }
+      var itemsChildren = itemsChildrenElement.childNodes;
+      var itemsChildCount = itemsChildren.length;
+      for(var j = itemsChildCount - 1;j > -1;--j) {
+        var newItem = itemsChildren[j];
+        if(newItem == undefined) {
+          AdfLogger.LOGGER.severe("Error getting the child of the optRnd block, index: " + i)
+        }else {
+          if(newItem.nodeType == 1) {
+            var newItemId = newItem.id;
+            itemsChildrenElement.removeChild(newItem);
+            var targetNode = agent.getElementById(newItemId);
+            if(targetNode != null) {
+              page.removeComponentsInSubtree(targetNode);
+              agent.elementsRemoved(targetNode);
+              agent.replaceNode(newItem, targetNode);
+              agent.elementsAdded(newItem)
+            }
+          }
+        }
+      }
+      newElement.removeChild(bodyChildrenElement);
+      newElement.removeChild(itemsChildrenElement);
+      if(disclosedShowDetailItemDiv) {
+        this._canvasOfSelectedItem = disclosedShowDetailItemDiv.parentNode.parentNode
+      }
+      if(!this._bodyCanvasAnimatorQueued && !this._toStripAnimationObject && this._canvasOfSelectedItem) {
+        this._rearrangeCanvasDivs(this._canvasOfSelectedItem);
+        delete this._canvasOfSelectedItem;
+        this._setSelectedPointerPosition();
+        if(!this._hideSelectedPointer) {
+          this._selectedPointerDiv.style.display = ""
+        }
+      }
+    }
+  }else {
+    AdfDhtmlPanelSpringboardPeer.superclass.ReplaceDomElement.call(this, newElement, oldElement)
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype.DomReplaceNotify = function(domNode) {
+  if(this._isOptimizedRenderTarget(domNode)) {
+    return this.getDomElement()
+  }else {
+    return domNode
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype.needsResizeNotify = function(component) {
+  return true
+};
+AdfDhtmlPanelSpringboardPeer.prototype.ResizeNotify = function(oldWidth, oldHeight, newWidth, newHeight) {
+  this._cBeltShift = {};
+  if(this._toStripAnimationObject != null || this._toGridAnimationObject != null) {
+    return
+  }
+  var domElement = this.getDomElement();
+  if(domElement) {
+    AdfAssert.assertDomElement(domElement);
+    var initialDisplay = this._initialDisplay;
+    var component = this.getComponent();
+    var iconElems = this._getChildElements(this._headerDiv);
+    var stripMode = component.getProperty(AdfRichPanelSpringboard.DISPLAY_MODE) != "grid";
+    if(stripMode && newWidth != oldWidth) {
+      this._positionStripMode(iconElems, newWidth);
+      this._initialPositionCanvasDivs(newWidth);
+      if(!initialDisplay && this._getCompleteItemWidth() > newWidth && !this._isScreenReaderMode) {
+        this._attemptToShowAsMuchElementsAsPossible(iconElems)
+      }
+    }else {
+      if(!stripMode) {
+        this._positionGridMode(iconElems, newWidth, newHeight)
+      }
+    }
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype.componentRemoved = function(component) {
+  if(this._selectedPtrAnimator) {
+    this._selectedPtrAnimator.stop();
+    delete this._selectedPtrAnimator
+  }
+  if(this._bodyCanvasAnimator) {
+    this._bodyCanvasAnimator.stop();
+    delete this._bodyCanvasAnimator;
+    this._bodyCanvasAnimatorQueued = false
+  }
+  if(this._toGridAnimationObject) {
+    this._toGridAnimationObject.stop();
+    delete this._toGridAnimationObject
+  }
+  if(this._toStripAnimationObject) {
+    this._toStripAnimationObject.stop();
+    delete this._toStripAnimationObject
+  }
+  delete this._headerDiv;
+  delete this._bodyDiv;
+  delete this._bodyCanvasDiv;
+  delete this._bodyViewportDiv;
+  delete this._optRndId;
+  this._unregisterBodySwiping();
+  AdfPage.PAGE.__unregisterDescendantResizeNotifyComponent(component);
+  AdfDhtmlPanelSpringboardPeer.superclass.ComponentRemoved.call(this, component)
+};
+AdfDhtmlPanelSpringboardPeer.prototype._positionStripMode = function(iconElems, newWidth) {
+  var numberOfItems = iconElems.length;
+  if(numberOfItems > 0) {
+    var itemObjects = this._getStripItemPositions(iconElems, newWidth);
+    var selectedPosition;
+    var selectedChildFound;
+    var shiftField = this._shiftField;
+    var initialDisplay = this._initialDisplay;
+    var selectedElementPosition = -1;
+    if(initialDisplay) {
+      delete this._initialDisplay
+    }
+    for(var i = 0;i < numberOfItems;i++) {
+      var item = itemObjects[i];
+      var finalProperties = item["properties"];
+      iconElems[i].style[shiftField] = finalProperties[shiftField] + "px";
+      iconElems[i].style.top = finalProperties.top + "px";
+      var firstChild = AdfDomUtils.getFirstChildElement(iconElems[i]);
+      if(firstChild && AdfDomUtils.containsCSSClassName(firstChild, AdfDhtmlPanelSpringboardPeer._SELECTED_CLASS)) {
+        selectedChildFound = true;
+        selectedPosition = finalProperties[shiftField];
+        selectedElementPosition = i
+      }
+    }
+    if(this._selectedPointerDiv != null && selectedChildFound) {
+      this._selectedPointerDiv.style[shiftField] = selectedPosition + "px";
+      if(initialDisplay && !this._isScreenReaderMode) {
+        this._positionElementIntoOverflow(newWidth, iconElems, selectedElementPosition, selectedPosition)
+      }
+    }
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._positionGridMode = function(iconElems, newWidth, newHeight) {
+  var numberOfItems = iconElems.length;
+  if(numberOfItems > 0) {
+    var itemObjects = this._getGridItemPositions(iconElems, newWidth, newHeight);
+    if(itemObjects.length !== numberOfItems) {
+      AdfLogger.LOGGER.severe("The number of items in the panelSpringboard does not equal the number of items in " + "the grid items position array.")
+    }
+    var shiftField = this._shiftField;
+    for(var i = 0;i < numberOfItems;i++) {
+      var item = itemObjects[i];
+      var finalProperties = item["properties"];
+      iconElems[i].style[shiftField] = finalProperties[shiftField] + "px";
+      iconElems[i].style.top = finalProperties.top + "px"
+    }
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._getStripItemPositions = function(iconElems, newWidth, ignoreNewWidthForOverflow) {
+  var numberOfItems = iconElems.length;
+  var shiftField = this._shiftField;
+  var itemObjects = [];
+  var itemObject;
+  if(numberOfItems > 0) {
+    var offsetWidth = iconElems[0].offsetWidth;
+    var properties = {};
+    if(!this._isScreenReaderMode && !ignoreNewWidthForOverflow && this._getCompleteItemWidth() > newWidth) {
+      var itemPosition = 0;
+      this._maintainCBeltDisplay(newWidth);
+      for(var i = 0;i < numberOfItems;i++) {
+        properties = {"top":0};
+        properties[shiftField] = itemPosition;
+        itemObject = {"element":iconElems[i], "properties":properties};
+        itemObjects.push(itemObject);
+        itemPosition += offsetWidth
+      }
+    }else {
+      if(this._isCBeltActivated()) {
+        this._hideCBelt()
+      }
+      var position = Math.max(0, newWidth / 2 - numberOfItems * offsetWidth / 2);
+      for(var i = 0;i < numberOfItems;i++) {
+        position = Math.round(position);
+        properties = {"top":0};
+        properties[shiftField] = position;
+        itemObject = {"element":iconElems[i], "properties":properties};
+        itemObjects.push(itemObject);
+        position += offsetWidth
+      }
+    }
+  }
+  return itemObjects
+};
+AdfDhtmlPanelSpringboardPeer.prototype._getGridItemPositions = function(iconElems, newWidth, newHeight) {
+  var numberOfItems = iconElems.length;
+  if(numberOfItems > 0) {
+    var itemObjects = [];
+    var itemObject;
+    var offsetWidth = iconElems[0].offsetWidth;
+    var offsetHeight = iconElems[0].offsetHeight;
+    var optimalGridSize = this._determineGridLayout(numberOfItems);
+    var gridHeight = offsetWidth * optimalGridSize.rows;
+    var gridWidth = offsetWidth * optimalGridSize.columns;
+    var horizontalOffset = newWidth / 2 - gridWidth / 2;
+    var topOffset = newHeight / 2 - gridHeight / 2;
+    var shiftField = this._shiftField;
+    var horizontalPosition;
+    var topPosition;
+    if(horizontalOffset >= 0 && topOffset >= 0) {
+      horizontalPosition = horizontalOffset;
+      topPosition = topOffset
+    }else {
+      horizontalPosition = 0;
+      topPosition = 0
+    }
+    var itemIndex = 0;
+    var properties = {};
+    this._cBeltContent.style.height = "";
+    this._cBeltContent.style.overflow = "";
+    this._cBeltContainer.style.overflow = "";
+    for(var row = 0;row < optimalGridSize.rows && itemIndex < numberOfItems;row++) {
+      horizontalPosition = horizontalOffset;
+      for(var col = 0;col < optimalGridSize.columns && itemIndex < numberOfItems;col++) {
+        horizontalPosition = Math.round(horizontalPosition);
+        topPosition = Math.round(topPosition);
+        properties = {"top":topPosition};
+        properties[shiftField] = horizontalPosition;
+        itemObject = {"element":iconElems[itemIndex], "properties":properties};
+        itemObjects.push(itemObject);
+        horizontalPosition += offsetWidth;
+        itemIndex++
+      }
+      topPosition += offsetHeight
+    }
+  }
+  return itemObjects
+};
+AdfDhtmlPanelSpringboardPeer.prototype._animateFromGridToStrip = function(iconElems, newWidth) {
+  var numberOfItems = iconElems.length;
+  if(numberOfItems > 0) {
+    var animationObjects = this._getStripItemPositions(iconElems, newWidth, true);
+    this._toStripAnimationOffsetWidth = newWidth;
+    var toStripAnimDuration = 0;
+    if(!this._isScreenReaderMode) {
+      var lookAndFeel = AdfPage.PAGE.getLookAndFeel();
+      toStripAnimDuration = parseInt(lookAndFeel.getSkinProperty("af|panelSpringboard-tr-grid-to-strip-animation-duration"), 10);
+      if(isNaN(toStripAnimDuration)) {
+        toStripAnimDuration = 0
+      }
+    }
+    this._toStripAnimationObject = AdfDhtmlElementAnimator.animate(AdfDhtmlElementAnimator.FRAME_METHOD_CONSTANT_SPEED, toStripAnimDuration, animationObjects, function(args) {
+      args[0]._duringToStripAnimation()
+    }, function(args) {
+      args[0]._afterToStripAnimationFinal();
+      var peer = args[0];
+      if(!peer._isScreenReaderMode) {
+        var prevHeight = parseInt(peer._cBeltContent.style.height, 10);
+        if(prevHeight !== iconElems[0].offsetHeight) {
+          peer._cBeltContent.style.height = iconElems[0].offsetHeight + "px"
+        }
+        peer._cBeltContent.style.overflow = "hidden";
+        peer._cBeltContainer.style.overflow = "hidden";
+        if(peer._getCompleteItemWidth() > peer._toStripAnimationOffsetWidth) {
+          peer._maintainCBeltDisplay(peer._toStripAnimationOffsetWidth);
+          peer._positionElementIntoOverflow(peer._toStripAnimationOffsetWidth)
+        }
+      }
+    }, [this], null)
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._animateFromStripToGrid = function(iconElems, newWidth, newHeight) {
+  this._bodyViewportDiv.style.visibility = "hidden";
+  var numberOfItems = iconElems.length;
+  if(numberOfItems > 0) {
+    var animationObjects = this._getGridItemPositions(iconElems, newWidth, newHeight);
+    this._toGridAnimationOffsetWidth = newWidth;
+    this._toGridAnimationOffsetHeight = newHeight;
+    var toGridAnimDuration = 0;
+    if(!this._isScreenReaderMode) {
+      var lookAndFeel = AdfPage.PAGE.getLookAndFeel();
+      toGridAnimDuration = parseInt(lookAndFeel.getSkinProperty("af|panelSpringboard-tr-strip-to-grid-animation-duration"), 10);
+      if(isNaN(toGridAnimDuration)) {
+        toGridAnimDuration = 0
+      }
+    }
+    this._toGridAnimationObject = AdfDhtmlElementAnimator.animate(AdfDhtmlElementAnimator.FRAME_METHOD_CONSTANT_SPEED, toGridAnimDuration, animationObjects, function(args) {
+      args[0]._duringToGridAnimation()
+    }, function(args) {
+      args[0]._afterToGridAnimationFinal()
+    }, [this], null)
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._determineGridLayout = function(numItems) {
+  var gridSize = 1;
+  while(gridSize * gridSize < numItems) {
+    gridSize++
+  }
+  if(numItems <= 3) {
+    return{rows:1, columns:numItems}
+  }else {
+    return{rows:gridSize, columns:gridSize}
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._initialPositionCanvasDivs = function(newWidth) {
+  var rootElement = this.getDomElement();
+  var isFlow = AdfDomUtils.containsCSSClassName(rootElement, AdfDhtmlPanelSpringboardPeer._FLOW_STYLECLASS);
+  if(isFlow) {
+    return
+  }
+  var canvasLeftDiv = this._getCanvasDiv("left");
+  var canvasMiddleDiv = this._getCanvasDiv("middle");
+  var canvasRightDiv = this._getCanvasDiv("right");
+  if(canvasLeftDiv == null) {
+    return
+  }
+  var newWidthString = newWidth + "px";
+  var rtl = AdfDhtmlPanelSpringboardPeer._isRTL();
+  var shiftField = this._shiftField;
+  canvasLeftDiv.style[shiftField] = rtl ? newWidth * 2 + "px" : "0px";
+  canvasLeftDiv.style.width = newWidthString;
+  canvasMiddleDiv.style[shiftField] = newWidthString;
+  canvasMiddleDiv.style.width = newWidthString;
+  canvasRightDiv.style[shiftField] = rtl ? "0px" : newWidth * 2 + "px";
+  canvasRightDiv.style.width = newWidthString;
+  this._bodyCanvasDiv.style.width = newWidth * 3 + "px";
+  this._bodyCanvasDiv.style[shiftField] = -1 * newWidth + "px"
+};
+AdfDhtmlPanelSpringboardPeer.prototype._getCanvasDiv = function(position) {
+  var agent = AdfAgent.getAgent();
+  var childElements = AdfDomUtils.getChildElements(this._bodyCanvasDiv);
+  var numberOfItems = childElements.length;
+  for(var i = 0;i < numberOfItems;i++) {
+    var currElement = childElements[i];
+    var canvasKey = agent.getAttribute(currElement, AdfDhtmlPanelSpringboardPeer._EXPANDO_CANVAS_ATTRIBUTE);
+    if(canvasKey == position) {
+      return currElement
+    }
+  }
+  return null
+};
+AdfDhtmlPanelSpringboardPeer.prototype._rearrangeCanvasDivs = function(selectedCanvas) {
+  var rootElement = this.getDomElement();
+  var isFlow = AdfDomUtils.containsCSSClassName(rootElement, AdfDhtmlPanelSpringboardPeer._FLOW_STYLECLASS);
+  if(isFlow) {
+    return
+  }
+  var newWidth = this.getDomElement().offsetWidth;
+  var agent = AdfAgent.getAgent();
+  var canvasMiddleDiv = this._getCanvasDiv("middle");
+  var canvasKey = agent.getAttribute(selectedCanvas, AdfDhtmlPanelSpringboardPeer._EXPANDO_CANVAS_ATTRIBUTE);
+  var shiftField = this._shiftField;
+  if(canvasKey != "middle") {
+    var pos = selectedCanvas.style[shiftField];
+    var forMiddle = canvasMiddleDiv.style[shiftField];
+    selectedCanvas.style[shiftField] = forMiddle;
+    canvasMiddleDiv.style[shiftField] = pos;
+    agent.setAttribute(selectedCanvas, AdfDhtmlPanelSpringboardPeer._EXPANDO_CANVAS_ATTRIBUTE, "middle");
+    agent.setAttribute(canvasMiddleDiv, AdfDhtmlPanelSpringboardPeer._EXPANDO_CANVAS_ATTRIBUTE, canvasKey)
+  }
+  this._bodyCanvasDiv.style.width = newWidth * 3 + "px";
+  this._bodyCanvasDiv.style[shiftField] = -1 * newWidth + "px"
+};
+AdfDhtmlPanelSpringboardPeer.prototype._handleBodyTouchStart = function(event) {
+  var touch;
+  var touches = event.touches;
+  if(touches.length === 1) {
+    touch = touches[0];
+    this._bodySwipeStartPosition = touch.pageX
+  }else {
+    this._bodySwipeStartPosition = null
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._handleBodyTouchMove = function(event) {
+  var touch;
+  var touches = event.touches;
+  if(touches.length === 1) {
+    touch = touches[0];
+    this._bodySwipeMovingPosition = touch.pageX
+  }else {
+    this._bodySwipeMovingPosition = null
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._handleBodyTouchEnd = function(event) {
+  var diff;
+  var isSwipeNext;
+  var rtlLanguage;
+  var threshold;
+  var bodyViewportVisible;
+  if(this._bodySwipeMovingPosition == null || this._bodySwipeStartPosition == null) {
+    this._resetBodySwipePositions();
+    return
+  }
+  bodyViewportVisible = this._bodyViewportDiv.style.visibility !== "hidden";
+  if(bodyViewportVisible && this._bodySwipeMovingPosition !== this._bodySwipeStartPosition) {
+    diff = this._bodySwipeMovingPosition - this._bodySwipeStartPosition;
+    threshold = AdfDhtmlPanelSpringboardPeer._SWIPE_THRESHOLD * this._bodyViewportDiv.offsetWidth;
+    if(Math.abs(diff) > threshold) {
+      rtlLanguage = AdfDhtmlPanelSpringboardPeer._isRTL();
+      if(diff < 0) {
+        isSwipeNext = !rtlLanguage
+      }else {
+        isSwipeNext = rtlLanguage
+      }
+      this._swipeBody(isSwipeNext)
+    }
+  }
+  this._resetBodySwipePositions()
+};
+AdfDhtmlPanelSpringboardPeer.prototype._resetBodySwipePositions = function() {
+  this._bodySwipeStartPosition = null;
+  this._bodySwipeMovingPosition = null
+};
+AdfDhtmlPanelSpringboardPeer.prototype._initBodySwiping = function(agent, bodyElement) {
+  this._handleBodyTouchStartCallback = this.createCallback(this._handleBodyTouchStart);
+  this._handleBodyTouchEndCallback = this.createCallback(this._handleBodyTouchEnd);
+  this._handleBodyTouchMoveCallback = this.createCallback(this._handleBodyTouchMove);
+  this._bodySwipeStartPosition = null;
+  this._bodySwipeMovingPosition = null;
+  agent.addBubbleEventListener(bodyElement, "touchstart", this._handleBodyTouchStartCallback);
+  agent.addBubbleEventListener(bodyElement, "touchmove", this._handleBodyTouchMoveCallback);
+  agent.addBubbleEventListener(bodyElement, "touchend", this._handleBodyTouchEndCallback)
+};
+AdfDhtmlPanelSpringboardPeer.prototype._unregisterBodySwiping = function() {
+  if(this._handleBodyTouchStartCallback && this._bodyViewportDiv) {
+    var bodyElement = this._bodyViewportDiv;
+    var agent = AdfAgent.AGENT;
+    agent.removeBubbleEventListener(bodyElement, "touchstart", this._handleBodyTouchStartCallback);
+    agent.removeBubbleEventListener(bodyElement, "touchmove", this._handleBodyTouchMoveCallback);
+    agent.removeBubbleEventListener(bodyElement, "touchend", this._handleBodyTouchEndCallback);
+    delete this._handleBodyTouchStartCallback;
+    delete this._handleBodyTouchEndCallback;
+    delete this._handleBodyTouchMoveCallback;
+    delete this._bodySwipeStartPosition;
+    delete this._bodySwipeMovingPosition
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._swipeBody = function(swipeNext) {
+  var component, iconElems, disclosedItemIndex, clickedObj;
+  component = this.getComponent();
+  if(component == null) {
+    return
+  }
+  iconElems = this._getChildElements(this._headerDiv);
+  disclosedItemIndex = this._getDisclosedItemIndex(iconElems);
+  if(disclosedItemIndex == -1) {
+    disclosedItemIndex = 0
+  }
+  clickedObj = this._determineComponentToSwipeTo(iconElems, disclosedItemIndex, swipeNext);
+  if(clickedObj) {
+    this._discloseClickedComponent(component, clickedObj["component"], clickedObj["element"])
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._getDisclosedItemIndex = function(iconElems) {
+  var agent, disclosedTabId, disclosedItemId, numberOfItems, disclosedItemIndex;
+  agent = AdfAgent.getAgent();
+  disclosedTabId = agent.getAttribute(this._headerDiv, AdfDhtmlPanelSpringboardPeer._EXPANDO_DISCLOSED_TAB_ID);
+  if(disclosedTabId == null) {
+    return null
+  }
+  disclosedItemId = AdfRichUIPeer.CreateSubId(disclosedTabId, AdfDhtmlPanelSpringboardPeer._TAB_SUB_ID_ABOVE);
+  numberOfItems = iconElems.length;
+  disclosedItemIndex = -1;
+  for(var i = 0;i < numberOfItems;i++) {
+    if(iconElems[i].id == disclosedItemId) {
+      disclosedItemIndex = i;
+      break
+    }
+  }
+  return disclosedItemIndex
+};
+AdfDhtmlPanelSpringboardPeer.prototype._determineComponentToSwipeTo = function(iconElems, disclosedItemIndex, swipeNext) {
+  var i, numberOfItems, rootDomElement, component;
+  if(disclosedItemIndex == -1) {
+    return null
+  }
+  rootDomElement = this.getDomElement();
+  numberOfItems = iconElems.length;
+  if(swipeNext) {
+    for(i = disclosedItemIndex + 1;i < numberOfItems;i++) {
+      component = this._getComponentFromItem(iconElems[i], rootDomElement);
+      if(component && !component.getDisabled()) {
+        return{"component":component, "element":iconElems[i]}
+      }
+    }
+  }else {
+    for(i = disclosedItemIndex - 1;i >= 0;i--) {
+      component = this._getComponentFromItem(iconElems[i], rootDomElement);
+      if(component && !component.getDisabled()) {
+        return{"component":component, "element":iconElems[i]}
+      }
+    }
+  }
+  return null
+};
+AdfDhtmlPanelSpringboardPeer.prototype._getComponentFromItem = function(item, rootDom) {
+  var rowKeyElement = this._getRowKeyElementFromDomElement(item, rootDom);
+  var childId = this._getRowKeyFromDomElement(rowKeyElement);
+  if(childId == null) {
+    return null
+  }
+  return AdfPage.PAGE.findComponent(childId)
+};
+AdfDhtmlPanelSpringboardPeer.prototype._discloseClickedComponent = function(component, clickedComponent, clickedElement) {
+  var oldDisclosedComponent = this._getOldDisclosedChildComponent(component);
+  var shiftField = this._shiftField;
+  if(clickedComponent != oldDisclosedComponent) {
+    var disclosureEvent = this._queueClientDisclosureChanges(oldDisclosedComponent, clickedComponent);
+    if(disclosureEvent == null || !disclosureEvent.isCanceled()) {
+      this._animateSelectedPointerDiv(clickedElement.style[shiftField]);
+      if(oldDisclosedComponent != null) {
+        this._animateBodyCanvas(oldDisclosedComponent.getClientId(), clickedElement)
+      }
+    }
+    if(component.getProperty(AdfRichPanelSpringboard.DISPLAY_MODE) != "grid" && this._isCBeltActivated()) {
+      var iconElems = this._getChildElements(this._headerDiv);
+      var numberOfItems = iconElems.length;
+      var selectedPosition = -1;
+      for(var i = 0;i < numberOfItems;i++) {
+        if(iconElems[i].id == clickedElement.id) {
+          selectedPosition = i;
+          break
+        }
+      }
+      if(selectedPosition > -1) {
+        this._positionElementIntoOverflow(this.getDomElement().offsetWidth, iconElems, selectedPosition)
+      }
+    }
+    this.NewTabSelected(component)
+  }else {
+    this.TabReselected(component)
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._getRowKeyElementFromDomElement = function(domElement, rootDomElement) {
+  AdfAssert.assertDomElement(domElement);
+  var currElement = domElement;
+  var agent = AdfAgent.getAgent();
+  if(currElement == null || currElement.nodeType != 1) {
+    return null
+  }
+  var rowKey = agent.getAttribute(currElement, AdfDhtmlPanelSpringboardPeer._EXPANDO_ROWKEY_ATTRIBUTE);
+  while(rowKey == null) {
+    if(currElement == null || currElement == rootDomElement) {
+      return null
+    }
+    currElement = currElement.parentNode;
+    if(currElement == null || currElement.nodeType != 1) {
+      return null
+    }
+    rowKey = agent.getAttribute(currElement, AdfDhtmlPanelSpringboardPeer._EXPANDO_ROWKEY_ATTRIBUTE)
+  }
+  return currElement
+};
+AdfDhtmlPanelSpringboardPeer.prototype._getRowKeyFromDomElement = function(currElement) {
+  if(currElement == null) {
+    return null
+  }else {
+    var agent = AdfAgent.getAgent();
+    return agent.getAttribute(currElement, AdfDhtmlPanelSpringboardPeer._EXPANDO_ROWKEY_ATTRIBUTE)
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._getOldDisclosedChildComponent = function(component) {
+  var agent = AdfAgent.getAgent();
+  var disclosedId = null;
+  disclosedId = agent.getAttribute(this._headerDiv, AdfDhtmlPanelSpringboardPeer._EXPANDO_DISCLOSED_TAB_ID);
+  if(disclosedId != null) {
+    return AdfPage.PAGE.findComponent(disclosedId)
+  }else {
+    return null
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._queueClientDisclosureChanges = function(oldDisclosed, newDisclosed) {
+  var oldDisclosedExists = oldDisclosed != null;
+  if(!oldDisclosedExists || oldDisclosed.getDisclosed() == true) {
+    var component = this.getComponent();
+    if(component.getContentDelivery() == "immediate") {
+      if(!AdfPage.PAGE.isAttachmentMode()) {
+        AdfLogger.LOGGER.warning("PanelSpringboard contentDelivery=immediate is not supported outside of attachment mode. Disclose ability is disabled while in this state.");
+        return
+      }
+      var oldClientId = oldDisclosed.getClientId();
+      this._changeSelected(oldClientId, false);
+      var oldPeer = oldDisclosed.getPeer();
+      oldPeer.bind(oldDisclosed);
+      oldPeer.getDomElement().parentNode.style.display = "none";
+      var newPeer = newDisclosed.getPeer();
+      newPeer.bind(newDisclosed);
+      newPeer.getDomElement().parentNode.style.display = "";
+      var newClientId = newDisclosed.getClientId();
+      this._changeSelected(newClientId, true);
+      oldDisclosed.setDisclosed(false);
+      newDisclosed.setDisclosed(true);
+      this._setOldDisclosedChild(newDisclosed.getClientId())
+    }else {
+      if(oldDisclosedExists) {
+        var oldItemPeer = oldDisclosed.getPeer();
+        oldItemPeer.bind(oldDisclosed);
+        return oldItemPeer.queueDisclosureEvent(false, true, newDisclosed)
+      }else {
+        var newItemPeer = newDisclosed.getPeer();
+        newItemPeer.bind(newDisclosed);
+        return newItemPeer.queueDisclosureEvent(true, true)
+      }
+    }
+  }else {
+    AdfLogger.LOGGER.severe("Unexpected panelSpringboard showDetailItem disclosure state for queueing client events. " + oldDisclosed.getClientId())
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._changeSelected = function(tabClientId, isSelected) {
+  var tabId = AdfRichUIPeer.CreateSubId(tabClientId, AdfDhtmlPanelSpringboardPeer._TAB_SUB_ID_ABOVE);
+  var tabElement = AdfAgent.getAgent().getElementById(tabId);
+  if(tabElement) {
+    var linkElement = AdfDomUtils.getFirstChildElement(tabElement);
+    if(linkElement) {
+      AdfDomUtils.addOrRemoveCSSClassName(isSelected, linkElement, AdfDhtmlPanelSpringboardPeer._SELECTED_CLASS);
+      AdfDomUtils.addOrRemoveCSSClassName(isSelected, AdfDomUtils.getDescendentElement(linkElement, "div", 1), AdfDhtmlPanelSpringboardPeer._SELECTED_CLASS)
+    }
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._getChildElements = function(childContainer) {
+  var childElements = childContainer.childNodes;
+  var children = [];
+  var numberOfItems = childElements.length;
+  for(var i = 0;i < numberOfItems;i++) {
+    var childElement = childElements[i];
+    if(childElement.nodeType == 1 && childElement != this._selectedPointerDiv) {
+      children.push(childElement)
+    }
+  }
+  return children
+};
+AdfDhtmlPanelSpringboardPeer.prototype._selectedPointerAnimationComplete = function(context) {
+  delete this._selectedPtrAnimator
+};
+AdfDhtmlPanelSpringboardPeer.prototype._animateSelectedPointerDiv = function(position) {
+  if(this._selectedPointerDiv != null) {
+    var cssLengthAsInt = AdfAgent.getCSSLengthAsInt;
+    var shiftField = this._shiftField;
+    var lengthIntPosition = cssLengthAsInt(position);
+    var properties = {};
+    properties[shiftField] = lengthIntPosition;
+    var animationItemArray = [{"element":this._selectedPointerDiv, "properties":properties}];
+    var selectedPtrAnimDuration = 0;
+    if(!this._isScreenReaderMode) {
+      var lookAndFeel = AdfPage.PAGE.getLookAndFeel();
+      selectedPtrAnimDuration = parseInt(lookAndFeel.getSkinProperty("af|panelSpringboard-tr-selected-pointer-animation-duration"), 10);
+      if(isNaN(selectedPtrAnimDuration)) {
+        selectedPtrAnimDuration = 0
+      }
+    }
+    this._selectedPtrAnimator = AdfDhtmlElementAnimator.animate(AdfDhtmlElementAnimator.FRAME_METHOD_CONSTANT_SPEED, selectedPtrAnimDuration, animationItemArray, null, function(args) {
+      var peer = args[0];
+      peer._selectedPointerAnimationComplete()
+    }, [this], null)
+  }else {
+    AdfLogger.LOGGER.severe("Cannot find this._selectedPointerDiv. This means that the strip mode was not rendered properly.")
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._bodyCanvasAnimationComplete = function(context) {
+  delete this._bodyCanvasAnimator;
+  this._bodyCanvasAnimatorQueued = false;
+  if(this._canvasOfSelectedItem) {
+    this._rearrangeCanvasDivs(this._canvasOfSelectedItem);
+    delete this._canvasOfSelectedItem
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._animateBodyCanvas = function(oldDisclosedClientId, clickedElement) {
+  var rootElement = this.getDomElement();
+  var isFlow = AdfDomUtils.containsCSSClassName(rootElement, AdfDhtmlPanelSpringboardPeer._FLOW_STYLECLASS);
+  var shiftField = this._shiftField;
+  if(isFlow) {
+    this._setBusy(rootElement, null);
+    return
+  }
+  if(this._bodyCanvasDiv == null) {
+    return
+  }
+  var agent = AdfAgent.getAgent();
+  var oldDisclosedTabId = AdfRichUIPeer.CreateSubId(oldDisclosedClientId, AdfDhtmlPanelSpringboardPeer._TAB_SUB_ID_ABOVE);
+  var oldDisclosedTabElement = agent.getElementById(oldDisclosedTabId);
+  var oldDisclosedPositionInt = parseInt(oldDisclosedTabElement.style[shiftField]);
+  var clickedElementPositionInt = parseInt(clickedElement.style[shiftField]);
+  var slideInFromRight = oldDisclosedPositionInt < clickedElementPositionInt;
+  var offsetWidth = this._bodyViewportDiv.offsetWidth;
+  var offsetHeight = this._bodyViewportDiv.offsetHeight;
+  var finalPos;
+  var childId = this._getRowKeyFromDomElement(clickedElement);
+  var showDetailItemElement = agent.getElementById(childId);
+  if(slideInFromRight) {
+    finalPos = -2 * offsetWidth;
+    this._prepareCanvasSideForSlide(rootElement, showDetailItemElement, "right")
+  }else {
+    finalPos = 0;
+    this._prepareCanvasSideForSlide(rootElement, showDetailItemElement, "left")
+  }
+  AdfPage.PAGE.ComponentsInSubtreeCallback(this._bodyCanvasDiv, AdfDhtmlPage.cancelAllPopupsCallback);
+  var properties = {};
+  properties[shiftField] = finalPos;
+  var animationItemArray = [{"element":this._bodyCanvasDiv, "properties":properties}];
+  var slideAnimDuration = 0;
+  if(!this._isScreenReaderMode) {
+    var lookAndFeel = AdfPage.PAGE.getLookAndFeel();
+    slideAnimDuration = parseInt(lookAndFeel.getSkinProperty("af|panelSpringboard-tr-body-slide-animation-duration"), 10);
+    if(isNaN(slideAnimDuration)) {
+      slideAnimDuration = 0
+    }
+  }
+  var peer = this;
+  this._bodyCanvasAnimatorQueued = true;
+  window.setTimeout(function() {
+    peer._animateBodyCanvasCallback(slideAnimDuration, animationItemArray)
+  }, 200)
+};
+AdfDhtmlPanelSpringboardPeer.prototype._animateBodyCanvasCallback = function(slideAnimDuration, animationItemArray) {
+  this._bodyCanvasAnimator = AdfDhtmlElementAnimator.animate(AdfDhtmlElementAnimator.FRAME_METHOD_CONSTANT_SPEED, slideAnimDuration, animationItemArray, null, function(args) {
+    var peer = args[0];
+    peer._bodyCanvasAnimationComplete()
+  }, [this], null)
+};
+AdfDhtmlPanelSpringboardPeer.prototype._prepareCanvasSideForSlide = function(domElement, showDetailItemElement, position) {
+  var canvasDiv = this._getCanvasDiv(position);
+  this._moveDom(showDetailItemElement.parentNode, AdfDomUtils.getFirstChildElement(canvasDiv));
+  this._setBusy(domElement, canvasDiv)
+};
+AdfDhtmlPanelSpringboardPeer.prototype._moveDom = function(sourceElement, targetElement) {
+  targetElement.appendChild(sourceElement)
+};
+AdfDhtmlPanelSpringboardPeer.prototype._afterToStripAnimationFinal = function() {
+  var domElement = this.getDomElement();
+  if(domElement != null) {
+    var newWidth = domElement.offsetWidth;
+    this._initialPositionCanvasDivs(newWidth)
+  }else {
+    AdfLogger.LOGGER.severe("In AdfDhtmlPanelSpringboardPeer.prototype._afterToStripAnimationFinal, no dom element. ")
+  }
+  this._toStripAnimationObject = null;
+  this._bodyViewportDiv.style.visibility = "visible";
+  if(this._canvasOfSelectedItem) {
+    this._rearrangeCanvasDivs(this._canvasOfSelectedItem);
+    delete this._canvasOfSelectedItem
+  }
+  if(this._haveShowDetailItemsInStrip) {
+    if(!this._hideSelectedPointer) {
+      this._selectedPointerDiv.style.display = ""
+    }
+    this._setSelectedPointerPosition();
+    delete this._haveShowDetailItemsInStrip
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._afterToGridAnimationFinal = function() {
+  this._toGridAnimationObject = null
+};
+AdfDhtmlPanelSpringboardPeer.prototype._duringToStripAnimation = function() {
+  var domElement = this.getDomElement();
+  if(domElement != null) {
+    var offsetWidth = domElement.offsetWidth;
+    if(offsetWidth != this._toStripAnimationOffsetWidth) {
+      this._toStripAnimationOffsetWidth = offsetWidth;
+      var animator = this._toStripAnimationObject;
+      if(animator != null) {
+        var iconElems = this._getChildElements(this._headerDiv);
+        animator.stop();
+        this._animateFromGridToStrip(iconElems, offsetWidth)
+      }
+    }
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._duringToGridAnimation = function() {
+  var domElement = this.getDomElement();
+  if(domElement != null) {
+    var offsetWidth = domElement.offsetWidth;
+    var offsetHeight = domElement.offsetHeight;
+    if(offsetWidth != this._toGridAnimationOffsetWidth || offsetHeight != this._toGridAnimationOffsetHeight) {
+      var animator = this._toGridAnimationObject;
+      if(animator != null) {
+        var iconElems = this._getChildElements(this._headerDiv);
+        animator.stop();
+        this._animateFromStripToGrid(iconElems, offsetWidth, offsetHeight)
+      }
+    }
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._setSelectedPointerPosition = function() {
+  var agent = AdfAgent.getAgent();
+  var shiftField = this._shiftField;
+  var selectedShowDetailItemId = agent.getAttribute(this._headerDiv, AdfDhtmlPanelSpringboardPeer._EXPANDO_DISCLOSED_TAB_ID);
+  var selectedTabId = AdfRichUIPeer.CreateSubId(selectedShowDetailItemId, AdfDhtmlPanelSpringboardPeer._TAB_SUB_ID_ABOVE);
+  var selectedTabElement = agent.getElementById(selectedTabId);
+  this._selectedPointerDiv.style[shiftField] = selectedTabElement.style[shiftField]
+};
+AdfDhtmlPanelSpringboardPeer.prototype._setOldDisclosedChild = function(newDisclosedId) {
+  var agent = AdfAgent.getAgent();
+  agent.setAttribute(this._headerDiv, AdfDhtmlPanelSpringboardPeer._EXPANDO_DISCLOSED_TAB_ID, newDisclosedId)
+};
+AdfDhtmlPanelSpringboardPeer.prototype._hasSubIdInId = function(target, subId1, subId2) {
+  var id = target.id;
+  if(id == null) {
+    return false
+  }
+  var tokens = id.split("::");
+  if(tokens.length <= 1) {
+    return false
+  }
+  var subId = tokens[tokens.length - 1];
+  if(subId) {
+    if(subId == subId1 || subId == subId2) {
+      return true
+    }
+  }
+  return false
+};
+AdfDhtmlPanelSpringboardPeer.prototype._findChildFromSubId = function(target, subId1, subId2) {
+  var clickedElement = this._getRowKeyElementFromDomElement(target, this.getDomElement());
+  var childId = this._getRowKeyFromDomElement(clickedElement);
+  if(childId != null) {
+    return AdfPage.PAGE.findComponent(childId)
+  }
+  return null
+};
+AdfDhtmlPanelSpringboardPeer.prototype._setToNormalIcon = function(iconElems) {
+  var numberOfItems = iconElems.length;
+  for(var i = 0;i < numberOfItems;i++) {
+    var firstChild = AdfDomUtils.getFirstChildElement(iconElems[i]);
+    if(firstChild && AdfDomUtils.containsCSSClassName(firstChild, AdfDhtmlPanelSpringboardPeer._SELECTED_CLASS)) {
+      var child = this._findChildFromSubId(firstChild, AdfDhtmlPanelSpringboardPeer._CLICKABLE_TAB_ITEM);
+      if(child) {
+        if(!child.getDisabled() && !AdfRichUIPeer.isInlineSVGIcon(child)) {
+          var imgDom = AdfDomUtils.getFirstDescendentElement(firstChild, "img");
+          this._displayIcon(imgDom, child, child.getIcon())
+        }
+      }
+      break
+    }
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._displayIcon = function(target, component, icon) {
+  if(!icon) {
+    icon = component.getIcon()
+  }
+  target.src = icon
+};
+AdfDhtmlPanelSpringboardPeer.prototype._handleIcon = function(componentEvent, isHover, isDepressed) {
+  var agent = AdfAgent.getAgent();
+  var target = componentEvent.getNativeEventTarget();
+  var child = this._findChildFromSubId(target, AdfDhtmlPanelSpringboardPeer._TAB_SUB_ID_ABOVE);
+  if(child && !AdfRichUIPeer.isInlineSVGIcon(child)) {
+    var iconElement = agent.getElementById(AdfRichUIPeer.CreateSubId(child.getClientId(), AdfDhtmlPanelSpringboardPeer._TAB_SUB_ID_ICON));
+    if(!child.getDisabled()) {
+      if(isHover) {
+        this._displayIcon(iconElement, child, child.getHoverIcon())
+      }else {
+        if(isDepressed) {
+          this._displayIcon(iconElement, child, child.getDepressedIcon())
+        }else {
+          var component = this.getComponent();
+          if(child.getDisclosed() && component.getProperty(AdfRichPanelSpringboard.DISPLAY_MODE) != "grid") {
+            this._displayIcon(iconElement, child, child.getDepressedIcon())
+          }else {
+            this._displayIcon(iconElement, child, child.getIcon())
+          }
+        }
+      }
+    }
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._getCompleteItemWidth = function() {
+  var completeWidth = 0;
+  var iconElems = this._getChildElements(this._headerDiv);
+  for(var i = 0, j = iconElems.length;i < j;i++) {
+    if(iconElems[i]) {
+      completeWidth += iconElems[i].offsetWidth
+    }
+  }
+  return completeWidth
+};
+AdfDhtmlPanelSpringboardPeer.prototype._getCBeltNavWidth = function() {
+  if(this._cBeltNavWidth === 0) {
+    this._startCBeltI.style.display = "inline-block";
+    this._cBeltNavWidth = this._startCBeltI.offsetWidth;
+    this._startCBeltI.style.display = "none"
+  }
+  return this._cBeltNavWidth
+};
+AdfDhtmlPanelSpringboardPeer.prototype._getCBeltItemShiftValues = function(movePrevious, iconElems) {
+  var numItemsPerClick = 0;
+  var summedWidth = 0;
+  var index = this._currCBeltIndex;
+  var cBeltShift = this._cBeltShift[index];
+  if(!cBeltShift) {
+    cBeltShift = {};
+    this._cBeltShift[index] = cBeltShift
+  }
+  var cBetlShiftValue = cBeltShift[movePrevious];
+  if(cBetlShiftValue) {
+    return cBetlShiftValue
+  }else {
+    if(!cBetlShiftValue) {
+      cBetlShiftValue = {};
+      cBeltShift[movePrevious] = cBetlShiftValue
+    }
+    var contentWidth = this._cBeltContainer.offsetWidth;
+    var cBeltNavWidth = this._getCBeltNavWidth();
+    if(this._startCBeltI.style.display == "inline-block") {
+      contentWidth -= cBeltNavWidth
+    }
+    if(this._endCBeltI.style.display == "inline-block") {
+      contentWidth -= cBeltNavWidth
+    }
+    var startIndex = index;
+    var numberOfMoves = 0;
+    var elementToSubtractIndex = -1;
+    if(movePrevious) {
+      elementToSubtractIndex = startIndex;
+      for(;summedWidth < contentWidth && startIndex > -1;startIndex--, numberOfMoves++) {
+        summedWidth += iconElems[startIndex].offsetWidth
+      }
+    }else {
+      for(var end = iconElems.length;summedWidth < contentWidth && startIndex < end;startIndex++, numberOfMoves++) {
+        elementToSubtractIndex = startIndex;
+        summedWidth += iconElems[startIndex].offsetWidth
+      }
+    }
+    if(numberOfMoves > 1) {
+      var subtractValue = 0;
+      if(summedWidth > contentWidth) {
+        var lastElement = iconElems[elementToSubtractIndex];
+        var withoutLastElementSum = summedWidth - lastElement.offsetWidth;
+        var remainder = contentWidth - withoutLastElementSum;
+        var image = lastElement;
+        while(image && !/^img$/i.test(image.tagName)) {
+          image = AdfDomUtils.getFirstChildElement(image)
+        }
+        if(image) {
+          var paddingEtc = (lastElement.offsetWidth - image.offsetWidth) / 2 + image.offsetWidth / 3;
+          if(remainder > paddingEtc) {
+            subtractValue = 1;
+            summedWidth -= iconElems[elementToSubtractIndex].offsetWidth
+          }else {
+            subtractValue = 1;
+            summedWidth -= iconElems[elementToSubtractIndex--].offsetWidth;
+            cBetlShiftValue.showLastAsFirstSubtract = true;
+            if(elementToSubtractIndex > -1) {
+              summedWidth -= iconElems[elementToSubtractIndex].offsetWidth;
+              subtractValue++
+            }
+          }
+        }
+      }else {
+        if(summedWidth === contentWidth) {
+          subtractValue = 1;
+          summedWidth -= iconElems[elementToSubtractIndex].offsetWidth;
+          cBetlShiftValue.showLastAsFirstSubtract = true
+        }
+      }
+      numberOfMoves -= subtractValue;
+      if(!movePrevious) {
+        var newComputedPosition = index + numberOfMoves;
+        var newCBeltShift = this._cBeltShift[newComputedPosition];
+        if(!newCBeltShift) {
+          newCBeltShift = {};
+          this._cBeltShift[newComputedPosition] = newCBeltShift
+        }
+        newCBeltShift[true] = {numItemsPerClick:numberOfMoves, summedWidth:summedWidth}
+      }
+    }
+    numItemsPerClick = numberOfMoves
+  }
+  cBetlShiftValue.numItemsPerClick = numItemsPerClick;
+  cBetlShiftValue.summedWidth = summedWidth;
+  return cBetlShiftValue
+};
+AdfDhtmlPanelSpringboardPeer.prototype._shiftConveyor = function(movePrevious) {
+  if(this._cBeltMoving || this._isScreenReaderMode) {
+    return
+  }
+  this._cBeltMoving = true;
+  var iconElems = this._getChildElements(this._headerDiv);
+  var index = this._currCBeltIndex;
+  var shiftField = this._shiftField;
+  var prevShift = parseInt(this._headerDiv.style[shiftField], 10);
+  var cBeltItemShiftValues = this._getCBeltItemShiftValues(movePrevious, iconElems);
+  var numItemsPerClick = cBeltItemShiftValues.numItemsPerClick;
+  var shiftAmount = cBeltItemShiftValues.summedWidth;
+  if(isNaN(prevShift)) {
+    this._headerDiv.style[shiftField] = "0px";
+    prevShift = 0
+  }
+  if(movePrevious) {
+    if(index - numItemsPerClick < 1) {
+      shiftAmount = prevShift * -1;
+      this._currCBeltIndex = 0
+    }else {
+      this._currCBeltIndex = Math.max(0, this._currCBeltIndex - numItemsPerClick)
+    }
+  }else {
+    shiftAmount *= -1;
+    this._currCBeltIndex = Math.min(iconElems.length - 1, this._currCBeltIndex + numItemsPerClick)
+  }
+  var properties = {};
+  properties[shiftField] = prevShift + shiftAmount;
+  this._shiftHelper(properties)
+};
+AdfDhtmlPanelSpringboardPeer.prototype._shiftHelper = function(properties) {
+  AdfDhtmlElementAnimator.animate(AdfDhtmlElementAnimator.FRAME_METHOD_CONSTANT_SPEED, this._conveyorSlideAnimationDuration, [{"element":this._headerDiv, "properties":properties}], function() {
+  }, function(args) {
+    args[0]._cBeltMoving = false;
+    args[0]._maintainCBeltDisplay()
+  }, [this], null)
+};
+AdfDhtmlPanelSpringboardPeer.prototype._maintainCBeltDisplay = function(newWidth) {
+  if(this._isScreenReaderMode) {
+    return
+  }
+  var iconElems = this._getChildElements(this._headerDiv);
+  var width = 0;
+  var rtl = AdfDhtmlPanelSpringboardPeer._isRTL();
+  var startCBelt = rtl ? this._endCBeltI : this._startCBeltI;
+  var endCBelt = rtl ? this._startCBeltI : this._endCBeltI;
+  var hideStart = this._currCBeltIndex === 0;
+  var hideEnd = true;
+  var settableWidth = typeof newWidth !== "undefined" ? Math.round(newWidth) : this._cBeltContainer.offsetWidth;
+  var shiftField = this._shiftField;
+  for(var i = this._currCBeltIndex, j = iconElems.length;i < j;i++) {
+    if(iconElems[i]) {
+      width += iconElems[i].offsetWidth
+    }
+  }
+  var cBeltNavWidth = this._getCBeltNavWidth();
+  var cBeltWidth = settableWidth - (hideStart ? 0 : cBeltNavWidth);
+  hideEnd = cBeltWidth > width || this._currCBeltIndex === iconElems.length - 1;
+  if(!hideEnd) {
+    cBeltWidth -= cBeltNavWidth
+  }
+  this._cBeltContent.style[shiftField] = this._currCBeltIndex > 0 ? cBeltNavWidth + "px" : "0px";
+  this._cBeltContent.style.width = cBeltWidth + "px";
+  if(typeof newWidth !== "undefined") {
+    this._cBeltContainer.style.width = settableWidth + "px"
+  }
+  startCBelt.style.display = hideStart ? "none" : "inline-block";
+  endCBelt.style.display = hideEnd ? "none" : "inline-block"
+};
+AdfDhtmlPanelSpringboardPeer.prototype._attemptToShowAsMuchElementsAsPossible = function(iconElems) {
+  if(this._isScreenReaderMode) {
+    return
+  }
+  var cBeltWidth = this._cBeltContainer.offsetWidth;
+  var cBeltNavWidth = this._getCBeltNavWidth();
+  if(this._startCBeltI.style.display == "inline-block") {
+    cBeltWidth -= cBeltNavWidth
+  }
+  if(this._endCBeltI.style.display == "inline-block") {
+    cBeltWidth -= cBeltNavWidth
+  }
+  var lastElement = null;
+  var summedWidth = 0;
+  var index = this._currCBeltIndex;
+  var end = iconElems.length;
+  var startIndex = index;
+  for(;summedWidth <= cBeltWidth && startIndex < end;startIndex++) {
+    lastElement = iconElems[startIndex];
+    summedWidth += lastElement.offsetWidth
+  }
+  if(startIndex === end && !(summedWidth > cBeltWidth)) {
+    var moveOverCount = 0;
+    var moveOverSum = 0;
+    var elementOverFlow = null;
+    var remainder = cBeltWidth - summedWidth;
+    for(var start = index;start > -1 && moveOverSum <= remainder;start--, moveOverCount++) {
+      elementOverFlow = iconElems[start];
+      moveOverSum += elementOverFlow.offsetWidth
+    }
+    if(moveOverSum > remainder) {
+      moveOverCount--;
+      moveOverSum -= elementOverFlow.offsetWidth
+    }
+    if(moveOverCount > 0) {
+      var shiftField = this._shiftField;
+      this._currCBeltIndex -= moveOverCount;
+      if(this._currCBeltIndex < 0) {
+        this._currCBeltIndex = 0
+      }
+      var prevShift = parseInt(this._headerDiv.style[shiftField], 10);
+      if(this._cBeltMoving) {
+        this._headerDiv.style[shiftField] = prevShift + moveOverSum + "px"
+      }else {
+        this._cBeltMoving = true;
+        var properties = {};
+        properties[shiftField] = prevShift + moveOverSum;
+        this._shiftHelper(properties)
+      }
+    }
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._bringDisclosedElementIntoView = function(selectedElementPosition, iconElems) {
+  if(this._isCBeltActivated()) {
+    var shiftValue = 0;
+    this._currCBeltIndex = 0;
+    var actualSpeed = this._conveyorSlideAnimationDuration;
+    this._conveyorSlideAnimationDuration = 0;
+    while(this._currCBeltIndex < selectedElementPosition) {
+      var cBeltItemShiftValues = this._getCBeltItemShiftValues(false, iconElems);
+      var numItemsPerClick = cBeltItemShiftValues.numItemsPerClick;
+      var shiftAmount = cBeltItemShiftValues.summedWidth;
+      var showLastAsFirstSubtract = cBeltItemShiftValues.showLastAsFirstSubtract;
+      var newCalcIndex = this._currCBeltIndex + numItemsPerClick + (showLastAsFirstSubtract ? 1 : 0);
+      if(newCalcIndex > selectedElementPosition) {
+        break
+      }
+      this._cBeltMoving = false;
+      this._shiftConveyor(false);
+      shiftValue += shiftAmount
+    }
+    this._conveyorSlideAnimationDuration = actualSpeed;
+    var shiftField = this._shiftField;
+    var prevShift = parseInt(this._headerDiv.style[shiftField], 10);
+    var properties = {};
+    if(prevShift < shiftValue) {
+      properties[shiftField] = shiftValue * -1;
+      this._shiftHelper(properties)
+    }else {
+      if(shiftValue > 0) {
+        properties[shiftField] = shiftValue * -1;
+        this._shiftHelper(properties)
+      }
+    }
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._positionElementIntoOverflow = function(newWidth, iconElems, selectedElementPosition, selectedPosition) {
+  if(typeof selectedElementPosition === "undefined") {
+    selectedElementPosition = -1;
+    var shiftField = this._shiftField;
+    iconElems = this._getChildElements(this._headerDiv);
+    var numberOfItems = iconElems.length;
+    var itemObjects = this._getStripItemPositions(iconElems, newWidth);
+    for(var i = 0;i < numberOfItems;i++) {
+      var item = itemObjects[i];
+      var finalProperties = item["properties"];
+      var firstChild = AdfDomUtils.getFirstChildElement(iconElems[i]);
+      if(firstChild && AdfDomUtils.containsCSSClassName(firstChild, AdfDhtmlPanelSpringboardPeer._SELECTED_CLASS)) {
+        selectedPosition = finalProperties[shiftField];
+        selectedElementPosition = i
+      }
+    }
+  }
+  if(selectedElementPosition !== -1) {
+    this._bringDisclosedElementIntoView(selectedElementPosition, iconElems)
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._processCbeltTab = function(event) {
+  if(this._isScreenReaderMode || !this._isCBeltActivated() || this._isCBeltActivated() && event.keyCode !== AdfKeyStroke.TAB_KEY) {
+    return
+  }
+  var iconElems = this._getChildElements(this._headerDiv);
+  this._cBeltShift = {};
+  var numberOfItems = iconElems.length;
+  var selectedElementPosition = -1;
+  var activeElement = document.activeElement;
+  for(var pos = 0;pos < numberOfItems;pos++) {
+    var firstChild = AdfDomUtils.getFirstChildElement(iconElems[pos]);
+    if(firstChild && activeElement == firstChild) {
+      selectedElementPosition = pos
+    }
+  }
+  if(selectedElementPosition > -1) {
+    this._positionElementIntoOverflow(this.getDomElement().offsetWidth, iconElems, selectedElementPosition)
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype._hideCBelt = function() {
+  var shiftField = this._shiftField;
+  var isRTL = AdfDhtmlPanelSpringboardPeer._isRTL();
+  var scrollField = isRTL ? "scrollRight" : "scrollLeft";
+  this._cBeltShift = {};
+  this._currCBeltIndex = 0;
+  this._startCBeltI.style.display = "none";
+  this._endCBeltI.style.display = "none";
+  this._cBeltContent[scrollField] = 0;
+  this._cBeltContent.style[shiftField] = "0px";
+  this._headerDiv.style[shiftField] = "0px";
+  this._cBeltContent.style.width = "";
+  this._cBeltContainer.style.width = ""
+};
+AdfDhtmlPanelSpringboardPeer.prototype._isCBeltActivated = function() {
+  return!this._isScreenReaderMode && (this._startCBeltI.style.display == "inline-block" || this._endCBeltI.style.display == "inline-block" || parseInt(this._headerDiv.style[this._shiftField], 10))
+};
+AdfDhtmlPanelSpringboardPeer._isRTL = function() {
+  return AdfPage.PAGE.getLocaleContext().isRightToLeft()
+};
+AdfDhtmlPanelSpringboardPeer.prototype._isOptimizedRenderTarget = function(domNode) {
+  return domNode.id === this._optRndId
+};
+AdfDhtmlPanelSpringboardPeer.prototype._setBusy = function(rootElement, bodyCanvasDiv) {
+  var isFlow = AdfDomUtils.containsCSSClassName(rootElement, AdfDhtmlPanelSpringboardPeer._FLOW_STYLECLASS);
+  var bodyElement;
+  if(isFlow) {
+    var clientId = this.getComponent().getClientId();
+    var bodyB = AdfRichUIPeer.createSubId(clientId, AdfDhtmlPanelSpringboardPeer._TAB_BODY_B);
+    bodyElement = AdfAgent.getAgent().getElementById(bodyB)
+  }else {
+    bodyElement = AdfDomUtils.getFirstChildElement(bodyCanvasDiv)
+  }
+  AdfDomUtils.addCSSClassName(bodyElement, AdfDhtmlPanelSpringboardPeer._BUSY_CLASS)
+};
+AdfDhtmlPanelSpringboardPeer.prototype._removeBusy = function(rootElement) {
+  var agent = AdfAgent.getAgent();
+  var isFlow = AdfDomUtils.containsCSSClassName(rootElement, AdfDhtmlPanelSpringboardPeer._FLOW_STYLECLASS);
+  var clientId = this.getComponent().getClientId();
+  var bodyB = AdfRichUIPeer.createSubId(clientId, AdfDhtmlPanelSpringboardPeer._TAB_BODY_B);
+  var bodyElement = agent.getElementById(bodyB);
+  AdfDomUtils.removeCSSClassName(bodyElement, AdfDhtmlPanelSpringboardPeer._BUSY_CLASS);
+  if(!isFlow) {
+    var bodyA = AdfRichUIPeer.createSubId(clientId, AdfDhtmlPanelSpringboardPeer._TAB_BODY_A);
+    var bodyC = AdfRichUIPeer.createSubId(clientId, AdfDhtmlPanelSpringboardPeer._TAB_BODY_C);
+    var bodyAElement = agent.getElementById(bodyA);
+    var bodyCElement = agent.getElementById(bodyC);
+    AdfDomUtils.removeCSSClassName(bodyAElement, AdfDhtmlPanelSpringboardPeer._BUSY_CLASS);
+    AdfDomUtils.removeCSSClassName(bodyCElement, AdfDhtmlPanelSpringboardPeer._BUSY_CLASS)
+  }
+};
+AdfDhtmlPanelSpringboardPeer.prototype.getContainerId = function(aligningElement) {
+  var clientId = this.getComponent().getClientId();
+  var bodyA = AdfRichUIPeer.createSubId(clientId, AdfDhtmlPanelSpringboardPeer._TAB_BODY_A);
+  var bodyB = AdfRichUIPeer.createSubId(clientId, AdfDhtmlPanelSpringboardPeer._TAB_BODY_B);
+  var bodyC = AdfRichUIPeer.createSubId(clientId, AdfDhtmlPanelSpringboardPeer._TAB_BODY_C);
+  var node = aligningElement.parentNode;
+  while(node) {
+    var nodeId = node.id;
+    if(nodeId != null) {
+      if(nodeId == bodyA) {
+        return bodyA
+      }
+      if(nodeId == bodyB) {
+        return bodyB
+      }
+      if(nodeId == bodyC) {
+        return bodyC
+      }
+    }
+    node = node.parentNode
+  }
+  return this.getComponent().getClientId()
+};

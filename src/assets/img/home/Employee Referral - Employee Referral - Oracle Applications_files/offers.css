@@ -1,0 +1,98 @@
+/********************************************************************************************
+ *                                  Processes style section                                 *
+ * ---------------------------------------------------------------------------------------- *
+ ********************************************************************************************/
+
+/********************************************************************************************
+ *                                  IMPORTANT NOTICE                                        *
+ * ---------------------------------------------------------------------------------------- *
+ * If a value is modified in this document under a "Overridable Attributes" section,        *
+ * the SQL sourcing script must be updated with the same modifications.                     *
+ * Be sure that there is no problem for Customization.                                      *
+ ********************************************************************************************/
+.eOfferContent {
+	display: block;
+	margin: 0;
+	padding: 5%;
+	border: 1px dotted grey;
+    font-family:  Arial, Times New Roman, Verdana, Sans-Serif;
+    font-size: 12pt;
+}
+.printed {
+	border: none;
+}
+.eOfferContent p {
+    font-family:  Arial, Times New Roman, Verdana, Sans-Serif;
+    font-size: 12pt;
+}
+.StaticEOffer .titlepage {
+	display: inline;
+}
+.StaticEOffer .attachment-list,
+.StaticEOffer .attachment-list td {
+	border: 0;
+}
+.eOfferContent .entity-label {
+}
+.eOfferContent .entity-label img {
+	margin-right: 5px;
+}
+.StaticEOffer .mainsection .metagrouppanel {
+	float: right;
+}
+.StaticEOffer .fs-508-block {
+	margin: 5px 5px 15px -5px;
+	padding-left: 0;
+}
+.StaticEOffer .mastercontentpanel {
+	border-bottom: 0;
+}
+ul.offerList {
+	margin: 20px;
+	padding: 0px;
+	overflow: auto;
+}
+ul.offerList li {
+	list-style-type: none;
+	list-style-image: none;
+	margin: 5px;
+	padding: 0px;
+	width: 32%;
+	float: left;
+	min-width: 200px;
+}
+ul.offerList label {
+	cursor: pointer;
+}
+ul.offerList .offerTitle {
+	display: block;
+	color: #333;
+	margin-bottom: 5px;
+}
+ul.offerList .list-column-link {
+	font-size: 1.4em;
+	font-weight: bold;
+	display: block;
+	margin-bottom: 5px;
+}
+ul.offerList a.offerId,
+ul.offerList a.offerId:active,
+ul.offerList a.offerId:visited,
+ul.offerList a.offerId-visited,
+ul.offerList a.offerId-visited:active,
+ul.offerList a.offerId-visited:visited {
+	text-decoration: none;
+	text-align: center;
+	margin: 0px;
+	padding: 20px 10px;
+	display: block;
+	border: 1px solid silver;
+	-moz-border-radius: 8px;
+	border-radius: 8px;
+	background: #FAF1D1 url('../images/already_applied.gif') no-repeat 10px 10px;
+}
+ul.offerList a.offerId:hover,
+ul.offerList a.offerId-visited:hover {
+	text-decoration: none;
+	background-color: #DCC879;
+}

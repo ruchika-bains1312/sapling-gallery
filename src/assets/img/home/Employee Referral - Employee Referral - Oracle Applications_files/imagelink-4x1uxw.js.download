@@ -1,0 +1,109 @@
+AdfUIComponents.createComponentClass("AdfRichCommandImageLink", {componentType:"oracle.adf.RichCommandImageLink", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"useWindow", type:"Boolean", "default":false}, {name:"windowModalityType", type:"String", "default":"modeless"}, {name:"windowEmbedStyle", type:"String", "default":"window"}, 
+{name:"windowHeight", type:"Number"}, {name:"windowWidth", type:"Number"}, {name:"iconDelivery", type:"String", "default":"auto"}, {name:"accessKey", type:"String"}, {name:"blocking", type:"Boolean", "default":false, secured:true}, {name:"disabled", type:"Boolean", "default":false, secured:true}, {name:"depressedIcon", type:"String"}, {name:"disabledIcon", type:"String"}, {name:"hoverIcon", type:"String"}, {name:"icon", type:"String"}, {name:"iconPosition", type:"String", "default":"leading"}, {name:"partialSubmit", 
+type:"Boolean", "default":false, secured:true}, {name:"text", type:"String"}], superclass:AdfUICommand});
+
+AdfRichUIPeer.createPeerClass(AdfDhtmlCommandLinkPeer, "AdfDhtmlCommandImageLinkPeer");
+AdfDhtmlCommandImageLinkPeer.InitSubclass = function() {
+  AdfObject.ensureClassInitialization(AdfRichCommandImageLink);
+  AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.MOUSE_DOWN_EVENT_TYPE, AdfUIInputEvent.MOUSE_UP_EVENT_TYPE);
+  if(!AdfAgent.AGENT.isTouchFirstDevice()) {
+    AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.MOUSE_IN_EVENT_TYPE, AdfUIInputEvent.MOUSE_OUT_EVENT_TYPE)
+  }
+  AdfRichUIPeer.addComponentPropertyChanges(this, AdfRichCommandImageLink.DISABLED);
+  this._DEPRESSED_STYLE_CLASS = "p_AFDepressed"
+};
+AdfDhtmlCommandImageLinkPeer.prototype.ComponentDisabledChanged = function(component, domElement, newValue, oldValue) {
+  if(newValue == true) {
+    AdfDomUtils.addCSSClassName(domElement, AdfRichUIPeer.DISABLED_STYLECLASS);
+    this._displayDisabledIcon(component);
+    this._setAriaDisabled(component)
+  }else {
+    AdfDomUtils.removeCSSClassName(domElement, AdfRichUIPeer.DISABLED_STYLECLASS);
+    this._displayDefaultIcon(component);
+    this._removeAriaDisabled(component)
+  }
+};
+AdfDhtmlCommandImageLinkPeer.prototype.HandleComponentMouseOver = function(componentEvent) {
+  if(!this.getComponent().getDisabled()) {
+    this._displayMouseOverIcon(this.getComponent())
+  }
+};
+AdfDhtmlCommandImageLinkPeer.prototype.HandleComponentMouseOut = function(componentEvent) {
+  var component = this.getComponent();
+  if(component.getDisabled()) {
+    return
+  }
+  this._setDepressedStyle(component, false);
+  this._displayDefaultIcon(this.getComponent())
+};
+AdfDhtmlCommandImageLinkPeer.prototype.HandleComponentMouseUp = function(componentEvent) {
+  var component = this.getComponent();
+  if(component.getDisabled()) {
+    return
+  }
+  this._setDepressedStyle(component, false);
+  this._displayMouseOverIcon(component)
+};
+AdfDhtmlCommandImageLinkPeer.prototype.HandleComponentMouseDown = function(componentEvent) {
+  var component = this.getComponent();
+  var isLeftButtonPressed = componentEvent.isLeftButtonPressed();
+  var isDisabled = component.getDisabled();
+  if(isDisabled || !isLeftButtonPressed) {
+    return
+  }
+  this._setDepressedStyle(component, true);
+  this._displayMouseDownIcon(component)
+};
+AdfDhtmlCommandImageLinkPeer.prototype._getIconElement = function(component) {
+  var clientId = component.getClientId();
+  var iconId = AdfRichUIPeer.CreateSubId(clientId, "icon");
+  return AdfAgent.AGENT.getElementById(iconId)
+};
+AdfDhtmlCommandImageLinkPeer.prototype._displayDefaultIcon = function(component) {
+  if(!AdfRichUIPeer.isInlineSVGIcon(component)) {
+    var defaultIcon = component.getIcon();
+    if(defaultIcon) {
+      this._getIconElement(component).src = defaultIcon
+    }
+  }
+};
+AdfDhtmlCommandImageLinkPeer.prototype._displayMouseDownIcon = function(component) {
+  this._displayIcon(component, component.getDepressedIcon())
+};
+AdfDhtmlCommandImageLinkPeer.prototype._displayMouseOverIcon = function(component) {
+  this._displayIcon(component, component.getHoverIcon())
+};
+AdfDhtmlCommandImageLinkPeer.prototype._displayDisabledIcon = function(component) {
+  this._displayIcon(component, component.getDisabledIcon())
+};
+AdfDhtmlCommandImageLinkPeer.prototype._displayIcon = function(component, icon) {
+  if(!AdfRichUIPeer.isInlineSVGIcon(component)) {
+    var defaultIcon = component.getIcon();
+    if(defaultIcon) {
+      this._getIconElement(component).src = icon || defaultIcon
+    }
+  }
+};
+AdfDhtmlCommandImageLinkPeer.prototype._setDepressedStyle = function(component, depressed) {
+  var domElement = AdfRichUIPeer.getDomElementForComponent(component);
+  var className = AdfDhtmlCommandImageLinkPeer._DEPRESSED_STYLE_CLASS;
+  if(depressed) {
+    AdfDomUtils.addCSSClassName(domElement, className)
+  }else {
+    AdfDomUtils.removeCSSClassName(domElement, className)
+  }
+};
+AdfDhtmlCommandImageLinkPeer.prototype._setAriaDisabled = function(component) {
+  var domElement = AdfRichUIPeer.getDomElementForComponent(component);
+  if(domElement.tagName != "A") {
+    domElement = AdfDomUtils.getDescendentElement(domElement, "a", 1)
+  }
+  domElement.setAttribute("aria-disabled", "true")
+};
+AdfDhtmlCommandImageLinkPeer.prototype._removeAriaDisabled = function(component) {
+  var domElement = AdfRichUIPeer.getDomElementForComponent(component);
+  if(domElement.tagName != "A") {
+    domElement = AdfDomUtils.getDescendentElement(domElement, "a", 1)
+  }
+  domElement.removeAttribute("aria-disabled")
+};

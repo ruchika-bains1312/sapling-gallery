@@ -1,0 +1,290 @@
+AdfUIComponents.createComponentClass("AdfRichSpacer", {componentType:"oracle.adf.RichSpacer", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"height", type:"String"}, {name:"width", type:"String"}], superclass:AdfUIObject});
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlSpacerPeer");
+AdfDhtmlSpacerPeer.InitSubclass = function() {
+  AdfRichUIPeer.addComponentPropertyChanges(this, AdfRichSpacer.WIDTH, AdfRichSpacer.HEIGHT)
+};
+AdfDhtmlSpacerPeer.prototype.ComponentWidthChanged = function(component, domElement, newValue, oldValue) {
+  if(newValue) {
+    var width = AdfDhtmlSpacerPeer._getLengthInt(newValue);
+    if(AdfAgent.AGENT.getPlatform() == AdfAgent.IE_PLATFORM) {
+      domElement.width = width
+    }else {
+      if(domElement.nodeName == "IMG") {
+        domElement.width = width
+      }else {
+        var div = domElement.firstChild;
+        if(!div) {
+          div = this.getDomDocument().createElement("div");
+          domNode.appendChild(div)
+        }
+        div.style.paddingLeft = width + "px"
+      }
+    }
+  }
+};
+AdfDhtmlSpacerPeer.prototype.ComponentHeightChanged = function(component, domElement, newValue, oldValue) {
+  if(newValue) {
+    var height = AdfDhtmlSpacerPeer._getLengthInt(newValue);
+    if(AdfAgent.AGENT.getPlatform() == AdfAgent.IE_PLATFORM) {
+      domElement.height = height
+    }else {
+      if(domElement.nodeName == "IMG") {
+        domElement.height = height
+      }else {
+        var div = domElement.firstChild;
+        if(!div) {
+          div = this.getDomDocument().createElement("div");
+          domNode.appendChild(div)
+        }
+        div.style.paddingTop = height + "px"
+      }
+    }
+  }
+};
+AdfDhtmlSpacerPeer._getLengthInt = function(value) {
+  var propStr = value;
+  var index = value.toLowerCase().indexOf("px");
+  if(index > 0) {
+    propStr = value.replace(/^\s*([\+\-]?\d+)\s*px\s*.*/i, "$1")
+  }
+  var propInt = 1;
+  if(propStr) {
+    propInt = propStr * 1
+  }
+  if(propInt < 0) {
+    propInt = 0
+  }
+  return propInt
+};
+
+AdfUIComponents.createComponentClass("AdfRichGoLink", {componentType:"oracle.adf.RichGoLink", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"accessKey", type:"String"}, {name:"disabled", type:"Boolean", "default":false, secured:true}, {name:"targetFrame", type:"String"}, {name:"text", type:"String"}], superclass:AdfUIGo});
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlGoLinkPeer");
+AdfDhtmlGoLinkPeer.InitSubclass = function() {
+  AdfRichUIPeer.addComponentPropertyChanges(this, AdfRichGoLink.TEXT)
+};
+AdfDhtmlGoLinkPeer.prototype.GetInlineEditor = function(event) {
+  return AdfDhtmlSimpleTextEditor.getInlineEditor()
+};
+AdfDhtmlGoLinkPeer.prototype.GetAccessibleName = function() {
+  var component = this.getComponent();
+  return component.getText()
+};
+AdfDhtmlGoLinkPeer.prototype.ComponentTextChanged = AdfDomUtils.__componentTextChanged;
+
+AdfUIComponents.createComponentClass("AdfRichGoButton", {componentType:"oracle.adf.RichGoButton", propertyKeys:[{name:"text", type:"String"}, {name:"disabled", type:"Boolean", "default":false, secured:true}, {name:"accessKey", type:"String"}, {name:"targetFrame", type:"String"}, {name:"icon", type:"String"}, {name:"iconDelivery", type:"String", "default":"auto"}, {name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", 
+secured:true}, {name:"visible", type:"Boolean", "default":true}], superclass:AdfUIGo});
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlGoButtonPeer");
+AdfDhtmlGoButtonPeer.InitSubclass = function() {
+  AdfRichUIPeer.addComponentPropertyChanges(this, AdfRichGoButton.TEXT);
+  AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.CLICK_EVENT_TYPE)
+};
+AdfDhtmlGoButtonPeer.prototype.GetInlineEditor = function(event) {
+  return AdfDhtmlSimpleTextEditor.getInlineEditor()
+};
+AdfDhtmlGoButtonPeer.prototype.GetAccessibleName = function() {
+  var component = this.getComponent();
+  return component.getText()
+};
+AdfDhtmlGoButtonPeer.prototype.HandleComponentClick = function(componentEvent) {
+  var component = this.getComponent();
+  var domElement = this.getDomElement();
+  var target = domElement.getAttribute("data-afr-target");
+  AdfNavigationUtils.performGetNavigation(component, componentEvent, target)
+};
+AdfDhtmlGoButtonPeer.prototype.ComponentTextChanged = AdfDomUtils.__componentTextChanged;
+
+function AdfNavigationUtils() {
+}
+AdfObject.createSubclass(AdfNavigationUtils);
+AdfNavigationUtils.performGetNavigation = function(component, clickComponentEvent, target) {
+  if(!clickComponentEvent.isLeftButtonPressed()) {
+    return
+  }
+  if(component.getDisabled()) {
+    return
+  }
+  var destination = component.getDestination();
+  if(destination != null) {
+    if(target == null) {
+      self.location = destination
+    }else {
+      var newWindow = window.open(destination, target);
+      newWindow.focus()
+    }
+    clickComponentEvent.cancel()
+  }
+};
+
+AdfUIComponents.createComponentClass("AdfRichGoImageLink", {componentType:"oracle.adf.RichGoImageLink", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"iconDelivery", type:"String", "default":"auto"}, {name:"accessKey", type:"String"}, {name:"disabled", type:"Boolean", "default":false, secured:true}, {name:"targetFrame", 
+type:"String"}, {name:"text", type:"String"}, {name:"depressedIcon", type:"String"}, {name:"disabledIcon", type:"String"}, {name:"hoverIcon", type:"String"}, {name:"icon", type:"String"}, {name:"iconPosition", type:"String", "default":"leading"}], superclass:AdfUIGo});
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlGoImageLinkPeer");
+AdfDhtmlGoImageLinkPeer.InitSubclass = function() {
+  AdfObject.ensureClassInitialization(AdfRichGoImageLink);
+  AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.MOUSE_DOWN_EVENT_TYPE, AdfUIInputEvent.MOUSE_UP_EVENT_TYPE);
+  if(!AdfAgent.AGENT.isTouchFirstDevice()) {
+    AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.MOUSE_IN_EVENT_TYPE, AdfUIInputEvent.MOUSE_OUT_EVENT_TYPE)
+  }
+  AdfRichUIPeer.addComponentPropertyChanges(this, AdfRichGoImageLink.TEXT);
+  this._DEPRESSED_STYLE_CLASS = "p_AFDepressed"
+};
+AdfDhtmlGoImageLinkPeer.prototype.HandleComponentMouseOver = function(componentEvent) {
+  if(!this.getComponent().getDisabled()) {
+    this._displayMouseOverIcon(this.getComponent())
+  }
+};
+AdfDhtmlGoImageLinkPeer.prototype.HandleComponentMouseOut = function(componentEvent) {
+  var component = this.getComponent();
+  if(component.getDisabled()) {
+    return
+  }
+  this._setDepressedStyle(component, false);
+  this._displayDefaultIcon(this.getComponent())
+};
+AdfDhtmlGoImageLinkPeer.prototype.HandleComponentMouseUp = function(componentEvent) {
+  var component = this.getComponent();
+  if(component.getDisabled()) {
+    return
+  }
+  this._setDepressedStyle(component, false);
+  this._displayMouseOverIcon(component)
+};
+AdfDhtmlGoImageLinkPeer.prototype.HandleComponentMouseDown = function(componentEvent) {
+  var component = this.getComponent();
+  var isLeftButtonPressed = componentEvent.isLeftButtonPressed();
+  var isDisabled = component.getDisabled();
+  if(isDisabled || !isLeftButtonPressed) {
+    return
+  }
+  this._setDepressedStyle(component, true);
+  this._displayMouseDownIcon(component)
+};
+AdfDhtmlGoImageLinkPeer.prototype._getIconElement = function(component) {
+  var clientId = component.getClientId();
+  var iconId = AdfRichUIPeer.CreateSubId(clientId, "icon");
+  return AdfAgent.AGENT.getElementById(iconId)
+};
+AdfDhtmlGoImageLinkPeer.prototype._displayDefaultIcon = function(component) {
+  if(!AdfRichUIPeer.isInlineSVGIcon(component)) {
+    var defaultIcon = component.getIcon();
+    if(defaultIcon) {
+      this._getIconElement(component).src = defaultIcon
+    }
+  }
+};
+AdfDhtmlGoImageLinkPeer.prototype._displayMouseDownIcon = function(component) {
+  this._displayIcon(component, component.getDepressedIcon())
+};
+AdfDhtmlGoImageLinkPeer.prototype._displayMouseOverIcon = function(component) {
+  this._displayIcon(component, component.getHoverIcon())
+};
+AdfDhtmlGoImageLinkPeer.prototype._displayDisabledIcon = function(component) {
+  this._displayIcon(component, component.getDisabledIcon())
+};
+AdfDhtmlGoImageLinkPeer.prototype._displayIcon = function(component, icon) {
+  if(!AdfRichUIPeer.isInlineSVGIcon(component)) {
+    var defaultIcon = component.getIcon();
+    if(defaultIcon) {
+      this._getIconElement(component).src = icon || defaultIcon
+    }
+  }
+};
+AdfDhtmlGoImageLinkPeer.prototype._setDepressedStyle = function(component, depressed) {
+  var domElement = AdfRichUIPeer.getDomElementForComponent(component);
+  var className = AdfDhtmlGoImageLinkPeer._DEPRESSED_STYLE_CLASS;
+  if(depressed) {
+    AdfDomUtils.addCSSClassName(domElement, className)
+  }else {
+    AdfDomUtils.removeCSSClassName(domElement, className)
+  }
+};
+AdfDhtmlGoImageLinkPeer.prototype.ComponentTextChanged = AdfDomUtils.__componentTextChanged;
+
+AdfUIComponents.createComponentClass("AdfRichIcon", {componentType:"oracle.adf.RichIcon", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"name", type:"String"}, {name:"iconDelivery", type:"String", "default":"auto"}], superclass:AdfUIObject});
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlIconPeer");
+
+AdfUIComponents.createComponentClass("AdfRichImage", {componentType:"oracle.adf.RichImage", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"visible", type:"Boolean", "default":true}, {name:"iconDelivery", type:"String", "default":"auto"}, {name:"source", type:"String"}, {name:"altSource", type:"String"}, {name:"shortDesc", type:"String"}, {name:"longDescURL", type:"String"}, {name:"imageMapType", type:"String", "default":"none"}], superclass:AdfUIObject});
+
+AdfRichImage.prototype.getAccessibleName = function() {
+  return this.getShortDesc()
+};
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlImagePeer");
+AdfDhtmlImagePeer.InitSubclass = function() {
+  var srcName = AdfRichImage.SOURCE;
+  AdfRichUIPeer.addComponentPropertyGetters(this, srcName);
+  AdfRichUIPeer.addComponentPropertyChanges(this, srcName)
+};
+AdfDhtmlImagePeer.prototype.GetComponentSource = function(component, domElement) {
+  return AdfPage.PAGE.removeResourceURL(domElement.src)
+};
+AdfDhtmlImagePeer.prototype.ComponentSourceChanged = function(component, domElement, newValue, oldValue) {
+  if(newValue == null) {
+    newValue = ""
+  }
+  domElement.src = AdfPage.PAGE.getResourceURL(newValue)
+};
+AdfDhtmlImagePeer.prototype.GetElementToReplaceWithSVG = function(component) {
+  var clientId = component.getClientId();
+  return document.getElementById(clientId)
+};
+
+AdfUIComponents.createComponentClass("AdfRichOutputText", {componentType:"oracle.adf.RichOutputText", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"escape", type:"Boolean", "default":true}, {name:"noWrap", type:"Boolean", "default":false}, {name:"truncateAt", type:"Number", "default":0}, {name:"description", type:"String"}], 
+superclass:AdfUIOutput});
+
+AdfRichOutputText.prototype.getAccessibleName = function() {
+  return this.getShortDesc()
+};
+
+AdfRichUIPeer.createPeerClass(AdfDhtmlValuePeer, "AdfDhtmlTextPeer");
+AdfDhtmlTextPeer.InitSubclass = function() {
+  this._inlineEditor = null
+};
+AdfDhtmlTextPeer.prototype.SetDisplayValue = function(component, domElement, newValue) {
+  if(component.getEscape()) {
+    AdfAgent.AGENT.setTextContent(domElement, newValue)
+  }else {
+    domElement.innerHTML = newValue
+  }
+};
+AdfDhtmlTextPeer.prototype.GetDisplayValue = function(component, domElement) {
+  AdfDomUtils.stripScripts(domElement);
+  if(component.getEscape()) {
+    return AdfAgent.AGENT.getTextContent(domElement)
+  }else {
+    return domElement.innerHTML
+  }
+};
+AdfDhtmlTextPeer.prototype.GetInlineEditor = function(event) {
+  var inlineEditor = AdfDhtmlTextPeer._inlineEditor;
+  if(inlineEditor == null) {
+    inlineEditor = new AdfRichPlainTextEditor("value");
+    AdfDhtmlTextPeer._inlineEditor = inlineEditor
+  }
+  return inlineEditor
+};
+
+AdfUIComponents.createComponentClass("AdfRichPanelGroupLayout", {componentType:"oracle.adf.RichPanelGroupLayout", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"theme", type:"String"}, {name:"layout", type:"String", "default":"default"}, {name:"valign", type:"String", "default":"middle"}, {name:"halign", type:"String", 
+"default":"start"}, {name:"landmark", type:"String", "default":"none"}], superclass:AdfUIPanel});
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlPanelGroupLayoutPeer");
+AdfDhtmlPanelGroupLayoutPeer.prototype.needsChildVisibilityChanges = function(component) {
+  return true
+};
+AdfDhtmlPanelGroupLayoutPeer.prototype.ChildVisibilityChanged = function(childComponent, childDomElement, childVisible) {
+  var domElement = this.getDomElement();
+  if(childDomElement.parentNode == domElement) {
+    AdfPage.PAGE.addPartialTargets(this.getComponent());
+    return true
+  }else {
+    return false
+  }
+};
+
+AdfUIComponents.createComponentClass("AdfRichSeparator", {componentType:"oracle.adf.RichSeparator", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}], superclass:AdfUIObject});
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlSeparatorPeer");

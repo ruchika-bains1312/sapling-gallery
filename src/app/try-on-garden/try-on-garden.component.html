@@ -1,0 +1,11 @@
+<div style="margin-top:5px;" class="d-flex flex-row">
+    <div class="canvas-renderer">
+        <app-canvas-viewport></app-canvas-viewport>
+    </div>
+    <div class=" side-panel">
+        <div *ngFor="let product of products_list">
+            <app-product-tile [product]="product" (selectProduct)="changeSelection($event)"></app-product-tile>
+        </div>
+    </div>
+    <img [hidden]=true id="selectedProductCanvas" [src]="selectedProductSrc" >
+</div>

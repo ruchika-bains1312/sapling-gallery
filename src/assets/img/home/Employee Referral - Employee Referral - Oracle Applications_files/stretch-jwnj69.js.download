@@ -1,0 +1,2122 @@
+AdfUIComponents.createComponentClass("AdfRichPanelSplitter", {componentType:"oracle.adf.RichPanelSplitter", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"persist", type:"Array"}, {name:"dontPersist", type:"Array"}, {name:"dimensionsFrom", type:"String", "default":"parent"}, {name:"disabled", type:"Boolean", "default":false, 
+secured:true}, {name:"orientation", type:"String", "default":"horizontal"}, {name:"positionedFromEnd", type:"Boolean", "default":false}, {name:"splitterPosition", type:"Number", "default":200}, {name:"collapsed", type:"Boolean", "default":false}, {name:"firstBorder", type:"String", "default":"skin"}, {name:"secondBorder", type:"String", "default":"skin"}, {name:"firstLandmark", type:"String", "default":"none"}, {name:"secondLandmark", type:"String", "default":"none"}], superclass:AdfUIPanel});
+
+AdfRichPanelSplitter.HORIZONTAL_SPLIT = "horizontal";
+AdfRichPanelSplitter.VERTICAL_SPLIT = "vertical";
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlPanelSplitterBasePeer", false);
+AdfDhtmlPanelSplitterBasePeer.InitSubclass = function() {
+  AdfRichUIPeer.addComponentPropertyChanges(this, AdfRichPanelSplitter.SPLITTER_POSITION, AdfRichPanelSplitter.COLLAPSED);
+  AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.KEY_DOWN_EVENT_TYPE);
+  this._DIVIDER_WIDTH = parseInt(AdfPage.PAGE.getLookAndFeel().getSkinProperty("af|panelSplitter-tr-divider-size"), 10);
+  this._SPLITTER_PADDING_PIXELS = "0px";
+  this._MINIMUM_PANE_SIZE = 0;
+  this._PANEL_SPLITTER_COLLAPSE_ANIMATION_DURATION = "af|panelSplitter-tr-collapse-animation-duration";
+  this._DISCLOSED_STATE = "p_AFDisclosed";
+  this._COLLAPSE_KEY = "af_panelSplitter.TIP_COLLAPSE";
+  this._RESTORE_KEY = "af_panelSplitter.TIP_RESTORE";
+  this._COLLAPSE_LABELED_SECTION_KEY = "af_panelSplitter.TIP_COLLAPSE_LABELED_PANE";
+  this._RESTORE_LABELED_SECTION_KEY = "af_panelSplitter.TIP_RESTORE_LABELED_PANE"
+};
+AdfDhtmlPanelSplitterBasePeer.prototype.BindToComponent = function(component, domElement) {
+  AdfDhtmlPanelSplitterBasePeer.superclass.BindToComponent.call(this, component, domElement);
+  var clientId = component.getClientId();
+  var firstId = AdfRichUIPeer.CreateSubId(clientId, "f");
+  var secondId = AdfRichUIPeer.CreateSubId(clientId, "s");
+  var dividerId = AdfRichUIPeer.CreateSubId(clientId, "d");
+  var highlighterId = AdfRichUIPeer.CreateSubId(clientId, "h");
+  var iconId = AdfRichUIPeer.CreateSubId(clientId, "i");
+  var agent = AdfAgent.AGENT;
+  this._firstDom = agent.getElementById(firstId);
+  this._secondDom = agent.getElementById(secondId);
+  this._dividerDom = agent.getElementById(dividerId);
+  this._highlighterDom = agent.getElementById(highlighterId);
+  this._iconDom = agent.getElementById(iconId)
+};
+AdfDhtmlPanelSplitterBasePeer.prototype.ComponentSplitterPositionChanged = function(component, domElement, newValue, oldValue) {
+  AdfPage.PAGE.doResizeNotify(component)
+};
+AdfDhtmlPanelSplitterBasePeer.prototype.ComponentCollapsedChanged = function(component, domElement, newValue, oldValue) {
+  var positionedFromEnd = AdfDhtmlPanelSplitterBasePeer._getPositionedFromEnd(component);
+  var cursorName = newValue ? "default" : "";
+  this._dividerDom.style.cursor = cursorName;
+  this._handleCollapseAnimation(newValue, component, positionedFromEnd)
+};
+AdfDhtmlPanelSplitterBasePeer.prototype.needsResizeNotify = function(component) {
+  return true
+};
+AdfDhtmlPanelSplitterBasePeer.prototype.needsChildVisibilityChanges = function(component) {
+  return true
+};
+AdfDhtmlPanelSplitterBasePeer.prototype.ResizeNotify = function(oldWidth, oldHeight, newWidth, newHeight) {
+  if(this._collapseAnimator) {
+    return
+  }
+  var component = this.getComponent();
+  var firstWrapperElement = this._firstDom;
+  var secondWrapperElement = this._secondDom;
+  var dividerElement = this._dividerDom;
+  var horizontal = AdfDhtmlPanelSplitterBasePeer._isHorizontal(component);
+  var dimensionsFromParent = this._isDimensionsFromParent();
+  var firstVisible = AdfDhtmlPanelSplitterBasePeer._isChildVisible(firstWrapperElement);
+  var secondVisible = AdfDhtmlPanelSplitterBasePeer._isChildVisible(secondWrapperElement);
+  var collapsed = component.getCollapsed();
+  var splitterPosition = collapsed ? 0 : parseInt(component.getSplitterPosition(), 10);
+  var positionedFromEnd = AdfDhtmlPanelSplitterBasePeer._getPositionedFromEnd(component);
+  if(!dimensionsFromParent && horizontal) {
+    if(!collapsed) {
+      if(positionedFromEnd) {
+        if(secondWrapperElement != null) {
+          secondWrapperElement.style.width = splitterPosition + "px"
+        }
+      }else {
+        if(firstWrapperElement != null) {
+          firstWrapperElement.style.width = splitterPosition + "px"
+        }
+      }
+    }
+    return
+  }
+  if(firstVisible == false && secondVisible == false) {
+    return
+  }
+  var widthChanged = oldWidth != newWidth;
+  var heightChanged = oldHeight != newHeight;
+  var splitterPositionChanged = !(widthChanged || heightChanged);
+  if(!dimensionsFromParent) {
+    var firstFlows = !positionedFromEnd;
+    var paneToStretch = null;
+    if(firstFlows && secondVisible) {
+      paneToStretch = firstWrapperElement
+    }
+    if(!firstFlows && firstVisible) {
+      paneToStretch = secondWrapperElement
+    }
+    if(paneToStretch != null) {
+      this._resizeOnly(paneToStretch, newWidth, splitterPosition, widthChanged, false)
+    }
+    if(firstVisible && secondVisible && !collapsed) {
+      if(positionedFromEnd) {
+        secondWrapperElement.style.height = splitterPosition + "px"
+      }else {
+        firstWrapperElement.style.height = splitterPosition + "px"
+      }
+    }
+    return
+  }
+  if(firstVisible != secondVisible) {
+    var onlyPane = firstVisible ? firstWrapperElement : secondWrapperElement;
+    this._resizeOnly(onlyPane, newWidth, newHeight, widthChanged, heightChanged);
+    return
+  }
+  var fixedPaneElement;
+  var stretchedPaneElement;
+  if(positionedFromEnd) {
+    fixedPaneElement = secondWrapperElement;
+    stretchedPaneElement = firstWrapperElement
+  }else {
+    fixedPaneElement = firstWrapperElement;
+    stretchedPaneElement = secondWrapperElement
+  }
+  var resizeFunc = horizontal ? this._resizeHorizontal : this._resizeVertical;
+  resizeFunc.call(this, fixedPaneElement, stretchedPaneElement, dividerElement, newWidth, newHeight, splitterPosition, widthChanged, heightChanged, splitterPositionChanged, AdfDhtmlPanelSplitterBasePeer._DIVIDER_WIDTH, positionedFromEnd);
+  var firstChildElement = AdfDomUtils.getFirstChildElement(firstWrapperElement);
+  var secondChildElement = AdfDomUtils.getFirstChildElement(secondWrapperElement);
+  var panePadding = this._getPanePadding(firstWrapperElement);
+  var agent = AdfAgent.AGENT;
+  agent.resizeStretchedChild(firstChildElement, panePadding);
+  agent.resizeStretchedChild(secondChildElement, panePadding)
+};
+AdfDhtmlPanelSplitterBasePeer.prototype.DomReplaceNotify = function(domNode) {
+  var parentNode = domNode.parentNode;
+  if(parentNode == this._firstDom || parentNode == this._secondDom) {
+    var component = this.getComponent();
+    var horizontal = AdfDhtmlPanelSplitterBasePeer._isHorizontal(component);
+    var dimensionsFromParent = this._isDimensionsFromParent();
+    if(!dimensionsFromParent) {
+      if(horizontal) {
+        return domNode
+      }
+      var positionedFromEnd = AdfDhtmlPanelSplitterBasePeer._getPositionedFromEnd(component);
+      if(parentNode == this._firstDom && positionedFromEnd) {
+        return domNode
+      }
+      if(parentNode == this._secondDom && !positionedFromEnd) {
+        return domNode
+      }
+    }
+    var needsResizeNotify = false;
+    var parentVisible = AdfDomUtils.isVisible(parentNode);
+    var childVisible = AdfDomUtils.isVisible(domNode);
+    if(childVisible != parentVisible) {
+      if(parentNode != this._getCollapsedPane()) {
+        AdfDomUtils.setVisible(parentNode, childVisible)
+      }
+      this._repositionPanes();
+      needsResizeNotify = true
+    }
+    var panePadding = this._getPanePadding(parentNode);
+    var agent = AdfAgent.AGENT;
+    agent.prepareStretchedChild(domNode, panePadding);
+    if(!needsResizeNotify) {
+      agent.resizeStretchedChild(domNode, panePadding);
+      return domNode
+    }
+    return this.getDomElement()
+  }
+  return domNode
+};
+AdfDhtmlPanelSplitterBasePeer.prototype.ChildVisibilityChanged = function(childComponent, childDomElement, childVisible) {
+  var parentNode = childDomElement.parentNode;
+  if(parentNode == this._firstDom || parentNode == this._secondDom) {
+    if(parentNode != this._getCollapsedPane()) {
+      AdfDomUtils.setVisible(parentNode, childVisible)
+    }
+    AdfDomUtils.setVisible(childDomElement, childVisible);
+    this._repositionPanes();
+    AdfPage.PAGE.doResizeNotify(this.getComponent());
+    return true
+  }
+};
+AdfDhtmlPanelSplitterBasePeer.prototype.__handleCollapseRestore = function(componentEvent) {
+  var eventTarget = componentEvent.getNativeEventTarget();
+  if(AdfDomUtils.isAncestorOrSelf(this._iconDom, eventTarget)) {
+    var component = this.getComponent();
+    var collapsed = component.getCollapsed();
+    component.setProperty(AdfRichPanelSplitter.COLLAPSED, !collapsed, true);
+    AdfAgent.AGENT.eatEvent(componentEvent.getNativeEvent());
+    return true
+  }
+  return false
+};
+AdfDhtmlPanelSplitterBasePeer.prototype.HandleComponentKeyDown = function(componentEvent) {
+  if(!componentEvent.isCanceled()) {
+    var component = this.getComponent();
+    var eventTarget = componentEvent.getNativeEventTarget();
+    var keyCode = componentEvent.getKeyCode();
+    if(keyCode == AdfKeyStroke.P_KEY) {
+      var domEvent = componentEvent.getNativeEvent();
+      if(domEvent.ctrlKey && domEvent.altKey) {
+        this._handleSplitterNavigationEvent(componentEvent);
+        componentEvent.cancel()
+      }
+    }
+    var collapsed = component.getCollapsed();
+    if(collapsed) {
+      return
+    }
+    if(!AdfDomUtils.isAncestorOrSelf(this._iconDom, eventTarget)) {
+      return
+    }
+    var splitterPosition = parseInt(component.getSplitterPosition(), 10);
+    var horizontal = AdfDhtmlPanelSplitterBasePeer._isHorizontal(component);
+    var adjustAmount = 0;
+    if(keyCode == AdfKeyStroke.ARROWUP_KEY && !horizontal || keyCode == AdfKeyStroke.ARROWLEFT_KEY && horizontal) {
+      adjustAmount = -5
+    }else {
+      if(keyCode == AdfKeyStroke.ARROWDOWN_KEY && !horizontal || keyCode == AdfKeyStroke.ARROWRIGHT_KEY && horizontal) {
+        adjustAmount = 5
+      }
+    }
+    if(adjustAmount != 0) {
+      if(AdfDhtmlPanelSplitterBasePeer._getPositionedFromEnd(component)) {
+        adjustAmount = -adjustAmount
+      }
+      var dimensionsFromParent = this._isDimensionsFromParent();
+      var positionedFromEnd = AdfDhtmlPanelSplitterBasePeer._getPositionedFromEnd(component);
+      var newPosition = this._getConstrainedSplitterPos(component, horizontal, splitterPosition + adjustAmount, !dimensionsFromParent && !horizontal && !positionedFromEnd);
+      component.setProperty(AdfRichPanelSplitter.SPLITTER_POSITION, newPosition, true);
+      componentEvent.cancel()
+    }
+  }
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._handleCollapseAnimation = function(collapsed, component, positionedFromEnd) {
+  var horizontal = AdfDhtmlPanelSplitterBasePeer._isHorizontal(component);
+  var fixedPane = positionedFromEnd ? this._secondDom : this._firstDom;
+  var fixedPaneChild = AdfDomUtils.getFirstChildElement(fixedPane);
+  var stretchedPane = positionedFromEnd ? this._firstDom : this._secondDom;
+  var paneDimensionToChange;
+  var splitterPosition = collapsed ? 0 : parseInt(component.getSplitterPosition(), 10);
+  var animDuration = parseInt(AdfPage.PAGE.getLookAndFeel().getSkinProperty(AdfDhtmlPanelSplitterBasePeer._PANEL_SPLITTER_COLLAPSE_ANIMATION_DURATION), 10);
+  if(isNaN(animDuration)) {
+    animDuration = 0
+  }
+  var peer = this;
+  if(this._isDimensionsFromParent()) {
+    var fixedPaneChildStyle = fixedPaneChild.style;
+    var stretchedPaneChild = AdfDomUtils.getFirstChildElement(stretchedPane);
+    var stretchedPaneChildStyle = stretchedPaneChild.style;
+    var dividerSize = AdfDhtmlPanelSplitterBasePeer._DIVIDER_WIDTH;
+    var fixedPaneSize;
+    var edgeToRemove;
+    var stretchedPaneSize;
+    var rootDom = this.getDomElement();
+    var rootSize = horizontal ? rootDom.clientWidth : rootDom.clientHeight;
+    var splitterLocation;
+    var divider = this._dividerDom;
+    var stretchedPaneStyle = stretchedPane.style;
+    if(collapsed) {
+      fixedPaneSize = 0;
+      stretchedPaneSize = rootSize - dividerSize + 1
+    }else {
+      fixedPaneSize = splitterPosition + 1;
+      stretchedPaneSize = rootSize - splitterPosition - dividerSize + 1
+    }
+    if(horizontal) {
+      paneDimensionToChange = "width";
+      edgeToRemove = "right"
+    }else {
+      paneDimensionToChange = "height";
+      edgeToRemove = "bottom"
+    }
+    splitterLocation = positionedFromEnd ? rootSize - splitterPosition - dividerSize : splitterPosition;
+    if(collapsed) {
+      if(horizontal) {
+        fixedPaneChildStyle.width = this._getStyleWidth(fixedPaneChild) + "px";
+        stretchedPaneChildStyle.width = rootDom.clientWidth - dividerSize + 1 + "px";
+        stretchedPaneStyle.width = this._getStyleWidth(stretchedPane) + "px"
+      }else {
+        fixedPaneChildStyle.height = this._getStyleHeight(fixedPaneChild) + "px";
+        stretchedPaneChildStyle.height = rootDom.clientHeight - dividerSize + 1 + "px";
+        stretchedPaneStyle.height = this._getStyleHeight(stretchedPane) + "px"
+      }
+    }else {
+      if(horizontal) {
+        fixedPaneChildStyle.width = splitterPosition + 1 + "px";
+        stretchedPaneChildStyle.width = this._getStyleWidth(stretchedPaneChild) + "px";
+        stretchedPaneStyle.width = rootDom.clientWidth - dividerSize + 1 + "px"
+      }else {
+        fixedPaneChildStyle.height = splitterPosition + 1 + "px";
+        stretchedPaneChildStyle.height = this._getStyleHeight(stretchedPaneChild) + "px";
+        stretchedPaneStyle.height = rootDom.clientHeight - dividerSize + 1 + "px"
+      }
+    }
+    fixedPaneChildStyle[edgeToRemove] = "";
+    stretchedPaneChildStyle[edgeToRemove] = "";
+    stretchedPaneStyle[edgeToRemove] = "";
+    if(positionedFromEnd) {
+      var divStyle = divider.style;
+      if(horizontal) {
+        divStyle.left = divider.offsetLeft + "px";
+        divStyle.right = ""
+      }else {
+        divStyle.top = divider.offsetTop + "px";
+        divStyle.bottom = ""
+      }
+    }
+    AdfDomUtils.setVisible(fixedPane, true);
+    var animationObjects = [];
+    var obj = {"element":fixedPane, "properties":{}};
+    obj.properties[paneDimensionToChange] = fixedPaneSize;
+    animationObjects.push(obj);
+    obj = {"element":stretchedPane, "properties":{}};
+    obj.properties[paneDimensionToChange] = stretchedPaneSize;
+    if(!positionedFromEnd) {
+      obj.properties[horizontal ? "offsetLeft" : "offsetTop"] = splitterLocation + dividerSize - 1
+    }
+    animationObjects.push(obj);
+    obj = {"element":divider, "properties":{}};
+    obj.properties[horizontal ? "offsetLeft" : "offsetTop"] = splitterLocation;
+    animationObjects.push(obj);
+    this._collapseAnimator = AdfDhtmlElementAnimator.animate(AdfDhtmlElementAnimator.FRAME_METHOD_SLOW_FAST_SLOW, animDuration, animationObjects, null, function(args) {
+      peer._afterCollapseAnimation(collapsed, horizontal, component, positionedFromEnd, fixedPane, fixedPaneChild, stretchedPane, stretchedPaneChild, true)
+    }, [], null)
+  }else {
+    if(horizontal) {
+      paneDimensionToChange = "width"
+    }else {
+      paneDimensionToChange = "height"
+    }
+    if(collapsed) {
+      fixedPaneSize = 0
+    }else {
+      fixedPaneSize = splitterPosition
+    }
+    AdfDomUtils.setVisible(fixedPane, true);
+    var flowObj = {"element":fixedPane, "properties":{}};
+    flowObj.properties[paneDimensionToChange] = fixedPaneSize;
+    this._collapseAnimator = AdfDhtmlElementAnimator.animate(AdfDhtmlElementAnimator.FRAME_METHOD_SLOW_FAST_SLOW, animDuration, [flowObj], null, function(args) {
+      peer._afterCollapseAnimation(collapsed, horizontal, component, positionedFromEnd, fixedPane, fixedPaneChild, stretchedPane, null, false)
+    }, [], component)
+  }
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._afterCollapseAnimation = function(collapsed, horizontal, component, positionedFromEnd, fixedPane, fixedPaneChild, stretchedPane, stretchedPaneChild, dimensionsFromParent) {
+  delete this._collapseAnimator;
+  AdfDomUtils.setVisible(fixedPane, !collapsed);
+  var agent = AdfAgent.AGENT;
+  if(dimensionsFromParent || !horizontal) {
+    agent.prepareStretchedChild(fixedPaneChild, "0px")
+  }
+  if(dimensionsFromParent) {
+    agent.prepareStretchedChild(stretchedPaneChild, "0px")
+  }
+  if(dimensionsFromParent && !positionedFromEnd) {
+    stretchedPane.style[horizontal ? "right" : "bottom"] = "0px"
+  }
+  AdfDomUtils.setVisible(this._highlighterDom, false);
+  this._updateDivider(collapsed, positionedFromEnd);
+  if(dimensionsFromParent) {
+    stretchedPane.style[horizontal ? "width" : "height"] = ""
+  }
+  if(dimensionsFromParent && positionedFromEnd) {
+    this._dividerDom.style[horizontal ? "left" : "top"] = ""
+  }
+  if(!dimensionsFromParent && horizontal) {
+    if(agent.getPlatform() == AdfAgent.IE_PLATFORM) {
+      var version = agent.getVersion();
+      if(version > 7 && version < 9) {
+        var rootElement = this.getDomElement();
+        rootElement.style.display = "none";
+        AdfPage.PAGE.scheduleTimer(this, this._afterTheAfterCollapseAnimationForIe, [rootElement], 1)
+      }
+    }
+  }
+  AdfPage.PAGE.doResizeNotify(component)
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._afterTheAfterCollapseAnimationForIe = function(params) {
+  var rootElement = params[0];
+  rootElement.style.display = "";
+  this._iconDom.focus()
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._getStyleHeight = function(domElement) {
+  var agent = AdfAgent.AGENT;
+  var computedStyle = agent.getComputedStyle(domElement);
+  var offsetHeight = domElement.offsetHeight;
+  return offsetHeight - AdfAgent.getCSSLengthAsInt(computedStyle.borderTopWidth) - AdfAgent.getCSSLengthAsInt(computedStyle.borderBottomWidth) - AdfAgent.getCSSLengthAsInt(computedStyle.paddingTop) - AdfAgent.getCSSLengthAsInt(computedStyle.paddingBottom)
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._getStyleWidth = function(domElement) {
+  var agent = AdfAgent.AGENT;
+  var computedStyle = agent.getComputedStyle(domElement);
+  var offsetWidth = domElement.offsetWidth;
+  return offsetWidth - AdfAgent.getCSSLengthAsInt(computedStyle.borderLeftWidth) - AdfAgent.getCSSLengthAsInt(computedStyle.borderRightWidth) - AdfAgent.getCSSLengthAsInt(computedStyle.paddingLeft) - AdfAgent.getCSSLengthAsInt(computedStyle.paddingRight)
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._handleSplitterNavigationEvent = function(componentEvent) {
+  var eventTarget = componentEvent.getNativeEventTarget();
+  var component = AdfRichUIPeer.getFirstAncestorComponent(eventTarget);
+  var startAtNode;
+  var startingAtRoot;
+  if(component && component instanceof AdfRichPanelSplitter) {
+    var peer = component.getPeer();
+    if(AdfDomUtils.isAncestorOrSelf(peer._iconDom, eventTarget)) {
+      startAtNode = peer._secondDom;
+      startingAtRoot = false
+    }else {
+      startAtNode = document.body;
+      startingAtRoot = true
+    }
+  }else {
+    startAtNode = document.body;
+    startingAtRoot = true
+  }
+  var domNode = this._findNextSplitter(startAtNode);
+  if(!domNode && !startingAtRoot) {
+    domNode = this._findNextSplitter(document.body)
+  }
+  if(!domNode) {
+    return
+  }
+  domNode.focus();
+  componentEvent.cancel()
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._findNextSplitter = function(domNode) {
+  var isVisibleFunc = AdfDomUtils.isVisible;
+  var isHtmlFunc = AdfAgent.AGENT.isElementHTML;
+  var getComponentFunc = AdfRichUIPeer.getFirstAncestorComponent;
+  var re = /::i$/;
+  while(true) {
+    if(domNode.hasChildNodes() && isVisibleFunc(domNode)) {
+      domNode = domNode.firstChild
+    }else {
+      while(true) {
+        var currNode = domNode;
+        domNode = currNode.nextSibling;
+        if(domNode == null) {
+          domNode = currNode.parentNode;
+          if(domNode == null) {
+            return null
+          }
+        }else {
+          break
+        }
+      }
+    }
+    var component, peer;
+    if(domNode.nodeType == 1 && isHtmlFunc(domNode) && isVisibleFunc(domNode) && domNode.nodeName == "A" && domNode.id && re.test(domNode.id) && (component = getComponentFunc(domNode)) && component instanceof AdfRichPanelSplitter && (peer = component.getPeer()) && peer._iconDom == domNode) {
+      return peer._iconDom
+    }
+  }
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._getConstrainedSplitterPos = function(component, horizontal, newPosition, infiniteMax) {
+  var splitterElement = this.getDomElement();
+  var splitterSize = horizontal ? splitterElement.clientWidth : splitterElement.clientHeight;
+  var dividerWidth = AdfDhtmlPanelSplitterBasePeer._DIVIDER_WIDTH;
+  var minPaneSize = AdfDhtmlPanelSplitterBasePeer._MINIMUM_PANE_SIZE;
+  var maxPaneSize = splitterSize - dividerWidth - minPaneSize;
+  newPosition = Math.max(newPosition, AdfDhtmlPanelSplitterBasePeer._MINIMUM_PANE_SIZE);
+  if(!infiniteMax) {
+    newPosition = Math.min(newPosition, maxPaneSize)
+  }
+  return newPosition
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._getPanePadding = function(paneNode) {
+  var padding = paneNode.style.paddingTop;
+  if(padding == "") {
+    padding = "0px"
+  }
+  return padding
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._handleTouchMovement = function(deltaX, deltaY) {
+  this._handleDrag(null, deltaX, deltaY);
+  this._handleDrop(null, deltaX, deltaY)
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._handleDrag = function(evt, deltaX, deltaY) {
+  var oldPosition;
+  var deltaValue;
+  var edgeName;
+  var component = this.getComponent();
+  var positionedFromEnd = AdfDhtmlPanelSplitterBasePeer._getPositionedFromEnd(component);
+  var horizontal = AdfDhtmlPanelSplitterBasePeer._isHorizontal(component);
+  var dividerStyle = null;
+  if(horizontal) {
+    if(deltaX == 0) {
+      return
+    }
+    deltaValue = deltaX;
+    edgeName = positionedFromEnd ? "right" : "left"
+  }else {
+    if(deltaY == 0) {
+      return
+    }
+    deltaValue = deltaY;
+    edgeName = positionedFromEnd ? "bottom" : "top"
+  }
+  var dimensionsFromParent = this._isDimensionsFromParent();
+  if(dimensionsFromParent) {
+    dividerStyle = this._dividerDom.style
+  }else {
+    if(this._flowDividerDom == null) {
+      var agent = AdfAgent.AGENT;
+      var flowHighlighterDom = this._highlighterDom.cloneNode(true);
+      var flowDividerDom = flowHighlighterDom.ownerDocument.createElement("div");
+      flowDividerDom.className = this._dividerDom.className;
+      var flowDividerHeight = this._dividerDom.offsetHeight;
+      var flowDividerStyle = flowDividerDom.style;
+      flowDividerStyle.position = "absolute";
+      flowDividerStyle.height = flowDividerHeight + "px";
+      if(horizontal) {
+        flowDividerStyle.width = this._dividerDom.style.width
+      }else {
+        flowDividerStyle.left = "0px";
+        flowDividerStyle.right = "0px"
+      }
+      flowDividerDom.appendChild(flowHighlighterDom);
+      agent.disableUserSelect(flowDividerDom);
+      this._highlighterDom.style.visibility = "hidden";
+      agent.removeIdsFromDomSubTree(flowDividerDom);
+      dividerStyle = flowDividerDom.style;
+      if(!horizontal && positionedFromEnd) {
+        edgeName = "top";
+        dividerStyle[edgeName] = this._firstDom.offsetHeight + "px"
+      }else {
+        var splitterPosition = component.getCollapsed() ? 0 : parseInt(component.getSplitterPosition(), 10);
+        dividerStyle[edgeName] = splitterPosition + "px"
+      }
+      var rootDom = this.getDomElement();
+      rootDom.insertBefore(flowDividerDom, rootDom.firstChild);
+      this._flowDividerDom = flowDividerDom
+    }else {
+      if(!horizontal && positionedFromEnd) {
+        edgeName = "top"
+      }
+      AdfDomUtils.setVisible(this._flowDividerDom, true);
+      dividerStyle = this._flowDividerDom.style
+    }
+  }
+  if(horizontal) {
+    oldPosition = parseInt(dividerStyle[edgeName], 10)
+  }else {
+    oldPosition = parseInt(dividerStyle[edgeName], 10)
+  }
+  if(!dimensionsFromParent && !horizontal && positionedFromEnd) {
+    var newHighlighterPosition = oldPosition + deltaValue;
+    var originalSplitterPosition = component.getCollapsed() ? 0 : parseInt(component.getSplitterPosition(), 10);
+    var nonHighlighterSize = originalSplitterPosition + this._firstDom.offsetHeight;
+    var newSplitterPosition = nonHighlighterSize - newHighlighterPosition;
+    var constrainedSplitterPosition = this._getConstrainedSplitterPos(component, horizontal, newSplitterPosition, false);
+    var constrainedHighlighterPosition = nonHighlighterSize - constrainedSplitterPosition;
+    dividerStyle[edgeName] = constrainedHighlighterPosition + "px"
+  }else {
+    var newPosition = positionedFromEnd ? oldPosition - deltaValue : oldPosition + deltaValue;
+    var constrainedPosition = this._getConstrainedSplitterPos(component, horizontal, newPosition, !dimensionsFromParent && !horizontal && !positionedFromEnd);
+    dividerStyle[edgeName] = constrainedPosition + "px"
+  }
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._handleDrop = function(evt, deltaX, deltaY) {
+  this._dragging = false;
+  AdfDomUtils.setVisible(this._iconDom, true);
+  var edgeName;
+  var component = this.getComponent();
+  var positionedFromEnd = AdfDhtmlPanelSplitterBasePeer._getPositionedFromEnd(component);
+  var horizontal = AdfDhtmlPanelSplitterBasePeer._isHorizontal(component);
+  var dimensionsFromParent = this._isDimensionsFromParent();
+  if(horizontal) {
+    edgeName = positionedFromEnd ? "right" : "left"
+  }else {
+    edgeName = positionedFromEnd ? "bottom" : "top"
+  }
+  var dividerStyle;
+  if(dimensionsFromParent) {
+    dividerStyle = this._dividerDom.style
+  }else {
+    if(this._flowDividerDom != null) {
+      dividerStyle = this._flowDividerDom.style;
+      AdfDomUtils.setVisible(this._flowDividerDom, false)
+    }else {
+      return
+    }
+  }
+  var position;
+  if(!dimensionsFromParent && !horizontal && positionedFromEnd) {
+    var highlighterPosition = parseInt(dividerStyle["top"], 10);
+    var originalSplitterPosition = component.getCollapsed() ? 0 : parseInt(component.getSplitterPosition(), 10);
+    var nonHighlighterSize = originalSplitterPosition + this._firstDom.offsetHeight;
+    var newSplitterPosition = nonHighlighterSize - highlighterPosition;
+    position = newSplitterPosition
+  }else {
+    position = parseInt(dividerStyle[edgeName], 10)
+  }
+  if(this._flowDividerDom != null) {
+    this._highlighterDom.style.visibility = "visible";
+    this._flowDividerDom.parentNode.removeChild(this._flowDividerDom);
+    this._flowDividerDom = null
+  }
+  component.setProperty(AdfRichPanelSplitter.SPLITTER_POSITION, position, true)
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._repositionPanes = function() {
+  var agent = AdfAgent.AGENT;
+  var firstPane = this._firstDom;
+  var secondPane = this._secondDom;
+  var dividerPane = this._dividerDom;
+  var firstVisible = AdfDhtmlPanelSplitterBasePeer._isChildVisible(firstPane);
+  var secondVisible = AdfDhtmlPanelSplitterBasePeer._isChildVisible(secondPane);
+  var bothVisible = firstVisible && secondVisible;
+  AdfDomUtils.setVisible(dividerPane, bothVisible);
+  if(!this._isDimensionsFromParent()) {
+    return
+  }
+  if(firstVisible != secondVisible) {
+    var visiblePane = firstVisible ? firstPane : secondPane;
+    var paddingPixels = AdfDhtmlPanelSplitterBasePeer._SPLITTER_PADDING_PIXELS;
+    agent.repositionStretchedElement(visiblePane, paddingPixels, paddingPixels, paddingPixels, paddingPixels)
+  }else {
+    var component = this.getComponent();
+    var positionedFromEnd = AdfDhtmlPanelSplitterBasePeer._getPositionedFromEnd(component);
+    var horizontal = AdfDhtmlPanelSplitterBasePeer._isHorizontal(component);
+    var element = positionedFromEnd ? secondPane : firstPane;
+    var edgeName;
+    if(horizontal) {
+      edgeName = positionedFromEnd ? "left" : "right"
+    }else {
+      edgeName = positionedFromEnd ? "top" : "bottom"
+    }
+    agent.removeStyleProperty(element, edgeName)
+  }
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._resizeHorizontal = function(fixedPaneElement, stretchedPaneElement, dividerElement, newWidth, newHeight, splitterPosition, widthChanged, heightChanged, splitterPositionChanged, dividerWidth, positionedFromEnd) {
+  var agent = AdfAgent.AGENT;
+  if(splitterPositionChanged) {
+    agent.setOuterWidth(fixedPaneElement, splitterPosition + 1);
+    var dividerOffset = splitterPosition + "px";
+    var stretchedPaneOffset = splitterPosition + dividerWidth - 1 + "px";
+    var edgeName = positionedFromEnd ? "right" : "left";
+    dividerElement.style[edgeName] = dividerOffset;
+    stretchedPaneElement.style[edgeName] = stretchedPaneOffset
+  }
+  if(splitterPositionChanged || widthChanged) {
+    var stretchedPaneWidth = newWidth - splitterPosition - dividerWidth;
+    stretchedPaneWidth = Math.max(0, stretchedPaneWidth);
+    agent.resizeStretchedElement(stretchedPaneElement, stretchedPaneWidth)
+  }
+  if(heightChanged) {
+    agent.resizeStretchedElement(fixedPaneElement, undefined, newHeight);
+    agent.resizeStretchedElement(stretchedPaneElement, undefined, newHeight);
+    agent.resizeStretchedElement(dividerElement, undefined, newHeight)
+  }
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._resizeVertical = function(fixedPaneElement, stretchedPaneElement, dividerElement, newWidth, newHeight, splitterPosition, widthChanged, heightChanged, splitterPositionChanged, dividerWidth, positionedFromEnd) {
+  var agent = AdfAgent.AGENT;
+  if(splitterPositionChanged) {
+    agent.setOuterHeight(fixedPaneElement, splitterPosition + 1);
+    var dividerOffset = splitterPosition + "px";
+    var stretchedPaneOffset = splitterPosition + dividerWidth - 1 + "px";
+    var edgeName = positionedFromEnd ? "bottom" : "top";
+    dividerElement.style[edgeName] = dividerOffset;
+    stretchedPaneElement.style[edgeName] = stretchedPaneOffset
+  }
+  if(splitterPositionChanged || heightChanged) {
+    var stretchedPaneHeight = newHeight - splitterPosition - dividerWidth;
+    stretchedPaneHeight = Math.max(0, stretchedPaneHeight);
+    agent.resizeStretchedElement(stretchedPaneElement, undefined, stretchedPaneHeight)
+  }
+  if(widthChanged) {
+    agent.resizeStretchedElement(fixedPaneElement, newWidth, undefined);
+    agent.resizeStretchedElement(stretchedPaneElement, newWidth, undefined);
+    agent.resizeStretchedElement(dividerElement, newWidth, undefined)
+  }
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._resizeOnly = function(onlyPane, newWidth, newHeight, widthChanged, heightChanged) {
+  var agent = AdfAgent.AGENT;
+  agent.resizeStretchedElement(onlyPane, newWidth, newHeight);
+  var childElement = AdfDomUtils.getFirstChildElement(onlyPane);
+  var panePadding = this._getPanePadding(onlyPane);
+  agent.resizeStretchedChild(childElement, panePadding)
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._getCollapsedPane = function() {
+  var component = this.getComponent();
+  if(component.getCollapsed()) {
+    var positionedFromEnd = AdfDhtmlPanelSplitterBasePeer._getPositionedFromEnd(component);
+    return positionedFromEnd ? this._secondDom : this._firstDom
+  }
+  return null
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._updateDivider = function(collapsed, positionedFromEnd) {
+  var iconKey;
+  var component = this.getComponent();
+  if(AdfDhtmlPanelSplitterBasePeer._isHorizontal(component)) {
+    if(positionedFromEnd) {
+      iconKey = collapsed ? "af|panelSplitter::horizontal-collapse-icon" : "af|panelSplitter::horizontal-restore-icon"
+    }else {
+      iconKey = collapsed ? "af|panelSplitter::horizontal-restore-icon" : "af|panelSplitter::horizontal-collapse-icon"
+    }
+  }else {
+    if(positionedFromEnd) {
+      iconKey = collapsed ? "af|panelSplitter::vertical-collapse-icon" : "af|panelSplitter::vertical-restore-icon"
+    }else {
+      iconKey = collapsed ? "af|panelSplitter::vertical-restore-icon" : "af|panelSplitter::vertical-collapse-icon"
+    }
+  }
+  AdfDomUtils.addOrRemoveCSSClassName(!collapsed, this._dividerDom, AdfDhtmlPanelSplitterBasePeer._DISCLOSED_STATE);
+  var iconAnchorElement = this._iconDom;
+  var imgElement = AdfDomUtils.getFirstChildElement(iconAnchorElement);
+  AdfDomUtils.swapIcon(imgElement, iconKey);
+  var childDisplayElement = AdfDomUtils.getFirstChildElement(iconAnchorElement);
+  var titleText = AdfDhtmlPanelSplitterBasePeer._getCollapseIconTooltipText(component, collapsed, positionedFromEnd);
+  iconAnchorElement.title = titleText;
+  if(childDisplayElement.tagName == "IMG") {
+    childDisplayElement.alt = titleText
+  }
+  childDisplayElement.title = titleText
+};
+AdfDhtmlPanelSplitterBasePeer.prototype.ComponentRemoved = function(component) {
+  if(this._touchMoveManager) {
+    this._touchMoveManager.unregister()
+  }
+  AdfDhtmlPanelSplitterBasePeer.superclass.ComponentRemoved.call(this, component)
+};
+AdfDhtmlPanelSplitterBasePeer.prototype._isDimensionsFromParent = function() {
+  if(this._dimensionsFromParent == null) {
+    var computedStyle = null;
+    if(this._dividerDom != null) {
+      computedStyle = AdfAgent.AGENT.getComputedStyle(this._dividerDom)
+    }else {
+      if(computedStyle == null && this._firstDom != null) {
+        computedStyle = AdfAgent.AGENT.getComputedStyle(this._firstDom)
+      }else {
+        if(computedStyle == null && this._secondDom != null) {
+          computedStyle = AdfAgent.AGENT.getComputedStyle(this._secondDom)
+        }
+      }
+    }
+    this._dimensionsFromParent = computedStyle.position == "absolute"
+  }
+  return this._dimensionsFromParent
+};
+AdfDhtmlPanelSplitterBasePeer._isChildVisible = function(paneElement) {
+  if(paneElement == null) {
+    return false
+  }
+  var childElement = AdfDomUtils.getFirstChildElement(paneElement);
+  return AdfDomUtils.isVisible(childElement)
+};
+AdfDhtmlPanelSplitterBasePeer._isHorizontal = function(component) {
+  return component.getOrientation() != AdfRichPanelSplitter.VERTICAL_SPLIT
+};
+AdfDhtmlPanelSplitterBasePeer._getPositionedFromEnd = function(component) {
+  var positionedFromEnd = component.getPositionedFromEnd();
+  if(AdfDhtmlPanelSplitterBasePeer._isHorizontal(component) && AdfPage.PAGE.getLocaleContext().isRightToLeft()) {
+    positionedFromEnd = !positionedFromEnd
+  }
+  return positionedFromEnd
+};
+AdfDhtmlPanelSplitterBasePeer._getCollapseIconTooltipText = function(component, collapsed, positionFromEnd) {
+  var laf = AdfPage.PAGE.getLookAndFeel();
+  var firstLandmark = component.getFirstLandmark();
+  var secondLandmark = component.getSecondLandmark();
+  if(!positionFromEnd && firstLandmark != "none") {
+    var titleKey = collapsed ? AdfDhtmlPanelSplitterBasePeer._RESTORE_LABELED_SECTION_KEY : AdfDhtmlPanelSplitterBasePeer._COLLAPSE_LABELED_SECTION_KEY;
+    return laf.getTranslatedString(titleKey, firstLandmark)
+  }else {
+    if(positionFromEnd && secondLandmark != "none") {
+      var titleKey = collapsed ? AdfDhtmlPanelSplitterBasePeer._RESTORE_LABELED_SECTION_KEY : AdfDhtmlPanelSplitterBasePeer._COLLAPSE_LABELED_SECTION_KEY;
+      return laf.getTranslatedString(titleKey, secondLandmark)
+    }else {
+      var titleKey = collapsed ? AdfDhtmlPanelSplitterBasePeer._RESTORE_KEY : AdfDhtmlPanelSplitterBasePeer._COLLAPSE_KEY;
+      return laf.getTranslatedString(titleKey)
+    }
+  }
+};
+
+AdfRichUIPeer.createPeerClass(AdfDhtmlPanelSplitterBasePeer, "AdfDhtmlPanelSplitterPeer", false);
+AdfDhtmlPanelSplitterPeer.InitSubclass = function() {
+  AdfRichUIPeer.addComponentEventHandlers(this, AdfUIInputEvent.MOUSE_IN_EVENT_TYPE, AdfUIInputEvent.MOUSE_OUT_EVENT_TYPE, AdfUIInputEvent.MOUSE_DOWN_EVENT_TYPE, AdfUIInputEvent.CLICK_EVENT_TYPE)
+};
+AdfDhtmlPanelSplitterPeer.prototype.HandleComponentClick = function(componentEvent) {
+  this.__handleCollapseRestore(componentEvent)
+};
+AdfDhtmlPanelSplitterPeer.prototype.HandleComponentMouseOver = function(componentEvent) {
+  if(this.getComponent().getCollapsed()) {
+    return
+  }
+  var eventTarget = componentEvent.getNativeEventTarget();
+  if(AdfDomUtils.isAncestorOrSelf(this._dividerDom, eventTarget)) {
+    AdfDomUtils.setVisible(this._highlighterDom, true)
+  }
+};
+AdfDhtmlPanelSplitterPeer.prototype.HandleComponentMouseOut = function(componentEvent) {
+  if(this._dragging) {
+    return
+  }
+  var eventTarget = componentEvent.getNativeEventTarget();
+  if(AdfDomUtils.isAncestorOrSelf(this._dividerDom, eventTarget)) {
+    AdfDomUtils.setVisible(this._highlighterDom, false)
+  }
+};
+AdfDhtmlPanelSplitterPeer.prototype.HandleComponentMouseDown = function(componentEvent) {
+  if(this.getComponent().getCollapsed()) {
+    return
+  }
+  var eventTarget = componentEvent.getNativeEventTarget();
+  if(AdfDomUtils.isAncestorOrSelf(this._dividerDom, eventTarget) && !AdfDomUtils.isAncestorOrSelf(this._iconDom, eventTarget)) {
+    AdfDomUtils.setVisible(this._iconDom, false);
+    var domEvent = componentEvent.getNativeEvent();
+    AdfPage.PAGE.startDrag(domEvent, this.createCallback(this._handleDrag), this.createCallback(this._handleDrop), undefined, true);
+    this._dragging = true
+  }
+  return false
+};
+
+function AdfDashboardDropTarget(allowedFlavors) {
+  this.Init(AdfDnDContext.ACTION_MOVE, allowedFlavors)
+}
+AdfObject.createSubclass(AdfDashboardDropTarget, AdfStampedDropTarget);
+AdfDashboardDropTarget.prototype.Init = function(allowedActions, allowedFlavors) {
+  AdfDashboardDropTarget.superclass.Init.call(this, allowedActions);
+  this._allowedFlavors = allowedFlavors
+};
+AdfDashboardDropTarget.prototype.GetAllowedFlavors = function(dndContext) {
+  return this._allowedFlavors
+};
+AdfDashboardDropTarget.prototype.AcceptDragOverrideIfRejectedByFlavor = function(dndContext, originalProposedAction) {
+  var dragSourceComponent = dndContext.getDragSource().getComponent();
+  if(dragSourceComponent && dragSourceComponent.getParent() == this.getComponent()) {
+    var possibleActions = this.GetAllowedActions() & originalProposedAction;
+    if(possibleActions) {
+      return originalProposedAction
+    }
+  }
+  return AdfDnDContext.ACTION_NONE
+};
+AdfDashboardDropTarget.prototype.NeedsRowKeyCollectionCheck = function() {
+  return false
+};
+AdfDashboardDropTarget.prototype.DropOnRowKey = function(dndContext, proposedAction, dropX, dropY, desiredDropIndexString, dropOrientation) {
+  AdfLogger.LOGGER.fine("Queing Drop Event with desired drop index:", desiredDropIndexString);
+  AdfAssert.assertString(desiredDropIndexString);
+  var dropSiteIndex = parseInt(desiredDropIndexString);
+  var panelDashboardComponent = this.getComponent();
+  var dragSource = dndContext.getDragSource();
+  var dragSourceComponent = dndContext.getDragSource().getComponent();
+  var draggedChildIndex = panelDashboardComponent.getPeer().getDraggedSourceChildIndex(dragSourceComponent, false);
+  if(dropSiteIndex == draggedChildIndex) {
+    return AdfDnDContext.ACTION_NONE
+  }else {
+    var dropEvent = new AdfDropEvent(panelDashboardComponent, dragSource, dndContext.getTransferable(), proposedAction, dropX, dropY, dropOrientation, "children", dropSiteIndex);
+    dropEvent.queue();
+    return proposedAction
+  }
+};
+
+AdfUIComponents.createComponentClass("AdfRichPanelDashboard", {componentType:"oracle.adf.RichPanelDashboard", propertyKeys:[{name:"dimensionsFrom", type:"String", "default":"parent"}, {name:"columns", type:"Number", "default":3}, {name:"rowHeight", type:"String", "default":"100px"}, "dropListener", {name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}], 
+superclass:AdfUIPanel});
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlPanelDashboardPeer", false);
+AdfDhtmlPanelDashboardPeer.InitSubclass = function() {
+  this._INSERT_DELETE_PIXEL_HEIGHT = "40";
+  this._PHASE_1_DURATION_FACTOR = 0.5;
+  this._PHASE_2_DURATION_FACTOR = 0.5
+};
+AdfDhtmlPanelDashboardPeer.prototype.InitDomElement = function(component, domElement) {
+  var allowedFlavorsProperty = component.getProperty("_allowedFlavors");
+  var allowedFlavorsArray = [];
+  if(allowedFlavorsProperty != null && allowedFlavorsProperty.length > 0) {
+    allowedFlavorsArray = eval(allowedFlavorsProperty)
+  }
+  component.setDropTarget(new AdfDashboardDropTarget(allowedFlavorsArray))
+};
+AdfDhtmlPanelDashboardPeer.prototype.needsResizeNotify = function(component) {
+  return true
+};
+AdfDhtmlPanelDashboardPeer.prototype.ResizeNotify = function(oldWidth, oldHeight, newWidth, newHeight) {
+  delete this._cachedChildWidthInPixels;
+  delete this._cachedChildHeightInPixels;
+  this._workaroundForInternetExplorer(newWidth)
+};
+AdfDhtmlPanelDashboardPeer.prototype.ComponentRemoved = function(component) {
+  if(this._animator != null) {
+    this._animator.stop()
+  }
+};
+AdfDhtmlPanelDashboardPeer.prototype.DomReplaceNotify = function(domNode) {
+  if(domNode.id.indexOf("optRnd") > 0) {
+    if(this._animator != null) {
+      var callbackParameters = this._animator.stop();
+      if(this._processingOptimizedChanges) {
+        if(callbackParameters != null && callbackParameters.length == 2) {
+          var oldElementsToDelete = callbackParameters[1];
+          this._deleteElements(oldElementsToDelete, true)
+        }
+      }
+    }
+    this._processingOptimizedChanges = true;
+    var agent = AdfAgent.AGENT;
+    var dataBody = this.__getDataBody();
+    var dataBodyChildren = AdfDomUtils.getChildElements(dataBody);
+    var dataBodyChildCount = dataBodyChildren.length;
+    var metaData = [];
+    var previousPlaceholderCount = 0;
+    var i;
+    var existingIndex;
+    for(i = 0;i < dataBodyChildCount;i++) {
+      var dataBodyChild = dataBodyChildren[i];
+      var firstChild = AdfDomUtils.getFirstChildElement(dataBodyChild);
+      if(firstChild == null || firstChild.name == "afrPlaceholder") {
+        metaData[i] = "placeholder";
+        previousPlaceholderCount++
+      }else {
+        metaData[i] = "existing"
+      }
+    }
+    var deleteString = agent.getAttribute(domNode, "afrDel");
+    if(deleteString != null) {
+      var deleteIndexes = eval(deleteString);
+      deleteIndexes.sort(AdfDhtmlPanelDashboardPeer._sortAscending);
+      existingIndex = 0;
+      for(i = 0;i < metaData.length;i++) {
+        if(metaData[i] == "existing") {
+          if(AdfDhtmlPanelDashboardPeer._arrayContains(deleteIndexes, existingIndex)) {
+            metaData[i] = "delete"
+          }
+          existingIndex++
+        }
+      }
+    }
+    var insertNodes = AdfDomUtils.getChildElements(domNode);
+    var insertCount = insertNodes.length;
+    var expectedInsertCount = parseInt(agent.getAttribute(domNode, "afrIns"));
+    if(insertCount > 0 && (isNaN(expectedInsertCount) || expectedInsertCount != insertCount)) {
+      AdfLogger.LOGGER.severe("Error - the panelDashboard was told to expect " + expectedInsertCount + " inserted " + (expectedInsertCount == 1 ? "child" : "children") + " but " + insertCount + " were sent.")
+    }
+    if(previousPlaceholderCount != 0 || insertCount != 0) {
+      var insertIndexes = [];
+      for(i = 0;i < insertCount;i++) {
+        insertIndexes.push(parseInt(agent.getAttribute(insertNodes[i], "afrIns")))
+      }
+      insertIndexes.sort(AdfDhtmlPanelDashboardPeer._sortAscending);
+      var ownerDoc = dataBody.ownerDocument;
+      existingIndex = 0;
+      var countedPlaceHolders = 0;
+      for(i = 0;i < metaData.length;i++) {
+        if(metaData[i] != "delete") {
+          if(metaData[i] == "placeholder") {
+            if(!AdfDhtmlPanelDashboardPeer._arrayContains(insertIndexes, existingIndex)) {
+              metaData.splice(i, 1);
+              dataBody.removeChild(dataBodyChildren[i]);
+              dataBodyChildren = AdfDomUtils.getChildElements(dataBody);
+              i--;
+              continue
+            }else {
+              countedPlaceHolders++;
+              existingIndex++
+            }
+          }else {
+            if(AdfDhtmlPanelDashboardPeer._arrayContains(insertIndexes, existingIndex)) {
+              metaData.splice(i, 0, "placeholder");
+              var neededWrapper = ownerDoc.createElement("div");
+              var neededWrapperStyle = neededWrapper.style;
+              neededWrapperStyle.position = "absolute";
+              neededWrapperStyle.overflow = "hidden";
+              neededWrapperStyle.width = "1px";
+              neededWrapperStyle.height = AdfDhtmlPanelDashboardPeer._INSERT_DELETE_PIXEL_HEIGHT + "px";
+              if(i < dataBodyChildren.length) {
+                dataBody.insertBefore(neededWrapper, dataBodyChildren[i])
+              }else {
+                dataBody.appendChild(neededWrapper)
+              }
+              dataBodyChildren = AdfDomUtils.getChildElements(dataBody);
+              countedPlaceHolders++;
+              existingIndex++
+            }else {
+              existingIndex++
+            }
+          }
+        }
+      }
+      while(countedPlaceHolders < insertCount) {
+        metaData.push("placeholder");
+        var endWrapper = ownerDoc.createElement("div");
+        var endWrapperStyle = endWrapper.style;
+        endWrapperStyle.position = "absolute";
+        endWrapperStyle.overflow = "hidden";
+        endWrapperStyle.width = "1px";
+        endWrapperStyle.height = AdfDhtmlPanelDashboardPeer._INSERT_DELETE_PIXEL_HEIGHT + "px";
+        var insertBeforeIndex = i++;
+        if(insertBeforeIndex < dataBodyChildren.length) {
+          dataBody.insertBefore(endWrapper, dataBodyChildren[i++])
+        }else {
+          dataBody.appendChild(endWrapper)
+        }
+        dataBodyChildren = AdfDomUtils.getChildElements(dataBody);
+        countedPlaceHolders++
+      }
+    }
+    var insertWrappers = [];
+    for(i = 0;i < metaData.length;i++) {
+      if(metaData[i] == "placeholder") {
+        insertWrappers.push(dataBodyChildren[i])
+      }
+    }
+    for(i = 0;i < insertCount;i++) {
+      var insertWrapper = insertWrappers[i];
+      var wrapperFirstChild = AdfDomUtils.getFirstChildElement(insertWrapper);
+      while(wrapperFirstChild) {
+        insertWrapper.removeChild(wrapperFirstChild);
+        wrapperFirstChild = AdfDomUtils.getFirstChildElement(insertWrapper)
+      }
+      var optimizedWrapper = AdfDomUtils.getFirstChildElement(domNode);
+      var optimizedContents = AdfDomUtils.getFirstChildElement(optimizedWrapper);
+      domNode.removeChild(optimizedWrapper);
+      optimizedWrapper.removeChild(optimizedContents);
+      insertWrapper.appendChild(optimizedContents)
+    }
+    var elementsToDelete = [];
+    for(i = 0;i < metaData.length;i++) {
+      if(metaData[i] == "delete") {
+        elementsToDelete.push(dataBodyChildren[i])
+      }
+    }
+    var isRtl = AdfPage.PAGE.getLocaleContext().isRightToLeft();
+    var dashboardComponent = this.getComponent();
+    var columns = dashboardComponent.getColumns();
+    var columnWidthPixels = this._getChildWidthInPixels(dashboardComponent);
+    var rowHeightPixels = this._getChildHeightInPixels(dashboardComponent);
+    var desiredChildIndex = 0;
+    var animationObjects = [];
+    if(metaData.length > dataBodyChildren.length) {
+      AdfLogger.LOGGER.severe("ERROR - Mismatch among metaData " + metaData.length + " and dataBodyChildren " + dataBodyChildren.length)
+    }else {
+      var desiredCellCount = 0;
+      for(i = 0;i < metaData.length;i++) {
+        var desiredColumnIndex = desiredChildIndex % columns;
+        var desiredRowIndex = Math.floor(desiredChildIndex / columns);
+        var animationElement = dataBodyChildren[i];
+        this._preventDiagonalMovement(animationElement, desiredColumnIndex, desiredRowIndex, columns, columnWidthPixels, rowHeightPixels, isRtl);
+        var animationObject;
+        if(metaData[i] == "delete") {
+          animationObject = {"element":animationElement, "properties":{"height":AdfDhtmlPanelDashboardPeer._INSERT_DELETE_PIXEL_HEIGHT, "offsetLeft":desiredColumnIndex * columnWidthPixels, "offsetTop":desiredRowIndex * rowHeightPixels}}
+        }else {
+          ++desiredCellCount;
+          animationObject = {"element":animationElement, "properties":{"width":columnWidthPixels, "offsetLeft":desiredColumnIndex * columnWidthPixels, "offsetTop":desiredRowIndex * rowHeightPixels}}
+        }
+        if(isRtl) {
+          animationElement.style.left = animationElement.offsetLeft + "px";
+          animationElement.style.right = "auto";
+          animationObject["properties"]["offsetLeft"] = (columns - 1 - desiredColumnIndex) * columnWidthPixels
+        }
+        animationObjects.push(animationObject);
+        desiredChildIndex++
+      }
+      var dashboardClientId = dashboardComponent.getClientId();
+      AdfDhtmlPanelDashboardPeer._adjustShim(animationObjects, dashboardClientId, columns, rowHeightPixels, desiredCellCount);
+      var animDuration = parseInt(AdfPage.PAGE.getLookAndFeel().getSkinProperty("af|panelDashboard-tr-insert-delete-animation-duration"));
+      if(isNaN(animDuration)) {
+        animDuration = 0
+      }else {
+        animDuration = Math.round(animDuration * AdfDhtmlPanelDashboardPeer._PHASE_1_DURATION_FACTOR)
+      }
+      var descendantResizeComponent = null;
+      var dimensionsFromChildren = AdfDhtmlPanelDashboardPeer._isDimensionsFromChildren(dashboardClientId);
+      if(dimensionsFromChildren) {
+        descendantResizeComponent = this.getComponent()
+      }
+      this._animator = AdfDhtmlElementAnimator.animate(AdfDhtmlElementAnimator.FRAME_METHOD_SLOW_FAST_SLOW, animDuration, animationObjects, null, AdfDhtmlPanelDashboardPeer._domReplaceNotifyPhase2, [this, elementsToDelete, metaData, dataBodyChildren, columns, columnWidthPixels, rowHeightPixels, insertCount, dashboardClientId, desiredCellCount], descendantResizeComponent)
+    }
+  }
+  return domNode
+};
+AdfDhtmlPanelDashboardPeer._domReplaceNotifyPhase2 = function(callbackParameters) {
+  var peer = callbackParameters[0];
+  var elementsToDelete = callbackParameters[1];
+  var metaData = callbackParameters[2];
+  var dataBodyChildren = callbackParameters[3];
+  var columns = callbackParameters[4];
+  var columnWidthPixels = callbackParameters[5];
+  var rowHeightPixels = callbackParameters[6];
+  var insertCount = callbackParameters[7];
+  var dashboardClientId = callbackParameters[8];
+  var desiredCellCount = callbackParameters[9];
+  var animationObjects = [];
+  var desiredChildIndex = 0;
+  var isRtl = AdfPage.PAGE.getLocaleContext().isRightToLeft();
+  var i;
+  for(i = 0;i < metaData.length;i++) {
+    var animationElement = dataBodyChildren[i];
+    var animationObject;
+    if(metaData[i] == "delete") {
+      animationObject = {"element":animationElement, "properties":{"width":1}};
+      if(isRtl) {
+        var offsetLeft = animationElement.offsetLeft;
+        animationElement.style.left = offsetLeft + "px";
+        animationElement.style.right = "auto";
+        animationObject["properties"]["offsetLeft"] = offsetLeft + columnWidthPixels
+      }
+    }else {
+      var desiredColumnIndex = desiredChildIndex % columns;
+      var desiredRowIndex = Math.floor(desiredChildIndex / columns);
+      peer._preventDiagonalMovement(animationElement, desiredColumnIndex, desiredRowIndex, columns, columnWidthPixels, rowHeightPixels, isRtl);
+      animationObject = {"element":animationElement, "properties":{"height":rowHeightPixels, "offsetLeft":desiredColumnIndex * columnWidthPixels, "offsetTop":desiredRowIndex * rowHeightPixels}};
+      if(isRtl) {
+        animationElement.style.left = animationElement.offsetLeft + "px";
+        animationElement.style.right = "auto";
+        animationObject["properties"]["offsetLeft"] = (columns - 1 - desiredColumnIndex) * columnWidthPixels
+      }
+      desiredChildIndex++
+    }
+    animationObjects.push(animationObject)
+  }
+  if(insertCount == 1 && elementsToDelete.length == 0) {
+    var firstInsertIndex = 0;
+    for(i = 0;i < metaData.length;i++) {
+      if(metaData[i] == "placeholder") {
+        var scrollTop = rowHeightPixels * Math.floor(firstInsertIndex / columns);
+        var root = peer.getDomElement();
+        animationObjects.push({"element":root, "properties":{"scrollTop":scrollTop}});
+        break
+      }else {
+        if(metaData[i] != "delete") {
+          firstInsertIndex++
+        }
+      }
+    }
+  }
+  AdfDhtmlPanelDashboardPeer._adjustShim(animationObjects, dashboardClientId, columns, rowHeightPixels, desiredCellCount);
+  var animDuration = parseInt(AdfPage.PAGE.getLookAndFeel().getSkinProperty("af|panelDashboard-tr-insert-delete-animation-duration"));
+  if(isNaN(animDuration)) {
+    animDuration = 0
+  }else {
+    animDuration = Math.round(animDuration * AdfDhtmlPanelDashboardPeer._PHASE_2_DURATION_FACTOR)
+  }
+  var descendantResizeComponent = null;
+  var dimensionsFromChildren = AdfDhtmlPanelDashboardPeer._isDimensionsFromChildren(dashboardClientId);
+  if(dimensionsFromChildren) {
+    descendantResizeComponent = peer.getComponent()
+  }
+  peer._animator = AdfDhtmlElementAnimator.animate(AdfDhtmlElementAnimator.FRAME_METHOD_SLOW_FAST_SLOW, animDuration, animationObjects, null, AdfDhtmlPanelDashboardPeer._resetChildrenPositioningStyles, [peer, elementsToDelete], descendantResizeComponent)
+};
+AdfDhtmlPanelDashboardPeer._isDimensionsFromChildren = function(dashboardClientId) {
+  var shimSubId = AdfRichUIPeer.CreateSubId(dashboardClientId, "shim");
+  var shimElement = AdfAgent.AGENT.getElementById(shimSubId);
+  return shimElement != null
+};
+AdfDhtmlPanelDashboardPeer._adjustShim = function(animationObjects, dashboardClientId, columns, rowHeightPixels, desiredCellCount) {
+  var shimSubId = AdfRichUIPeer.CreateSubId(dashboardClientId, "shim");
+  var shimElement = AdfAgent.AGENT.getElementById(shimSubId);
+  if(shimElement != null) {
+    var shimRowCount = Math.ceil(desiredCellCount / columns);
+    var shimHeightPixels = shimRowCount * rowHeightPixels;
+    if(animationObjects == null) {
+      shimElement.style.height = shimHeightPixels + "px"
+    }else {
+      var animationObject = {"element":shimElement, "properties":{"height":shimHeightPixels}};
+      animationObjects.push(animationObject)
+    }
+  }
+};
+AdfDhtmlPanelDashboardPeer.prototype.insertChildBehavior = function(dashboardComponent, insertIndex, alignComponent) {
+  var dataBody = this.__getDataBody();
+  var children = AdfDomUtils.getChildElements(dataBody);
+  var childCount = children.length;
+  var columns = dashboardComponent.getColumns();
+  var columnWidthPixels = this._getChildWidthInPixels(dashboardComponent);
+  var rowHeightPixels = this._getChildHeightInPixels(dashboardComponent);
+  if(insertIndex == -1) {
+    insertIndex = childCount
+  }
+  var desiredColumnIndex = insertIndex % columns;
+  var desiredRowIndex = Math.floor(insertIndex / columns);
+  var ownerDoc = dataBody.ownerDocument;
+  var insertedChildWrapper = ownerDoc.createElement("div");
+  var insertedStyle = insertedChildWrapper.style;
+  var scrollTop = desiredRowIndex * rowHeightPixels;
+  insertedStyle.position = "absolute";
+  insertedStyle.top = scrollTop + "px";
+  var isRtl = AdfPage.PAGE.getLocaleContext().isRightToLeft();
+  if(isRtl) {
+    insertedStyle.right = "auto";
+    insertedStyle.left = (columns - 1 - desiredColumnIndex) * columnWidthPixels + "px"
+  }else {
+    insertedStyle.left = desiredColumnIndex * columnWidthPixels + "px"
+  }
+  insertedStyle.overflow = "hidden";
+  insertedStyle.width = "1px";
+  insertedStyle.height = AdfDhtmlPanelDashboardPeer._INSERT_DELETE_PIXEL_HEIGHT + "px";
+  if(insertIndex < children.length) {
+    dataBody.insertBefore(insertedChildWrapper, children[insertIndex])
+  }else {
+    dataBody.appendChild(insertedChildWrapper)
+  }
+  children = AdfDomUtils.getChildElements(dataBody);
+  var temporaryInsertedChild = ownerDoc.createElement("div");
+  temporaryInsertedChild.name = "afrPlaceholder";
+  var temporaryInsertedStyle = temporaryInsertedChild.style;
+  temporaryInsertedStyle.position = "absolute";
+  temporaryInsertedStyle.top = "2px";
+  temporaryInsertedStyle.bottom = "2px";
+  temporaryInsertedStyle.left = "2px";
+  temporaryInsertedStyle.right = "2px";
+  temporaryInsertedStyle.padding = "4px";
+  temporaryInsertedStyle.borderWidth = "1px";
+  temporaryInsertedStyle.borderStyle = "solid";
+  temporaryInsertedStyle.borderColor = "#CCCCCC";
+  insertedChildWrapper.appendChild(temporaryInsertedChild);
+  temporaryInsertedChild.appendChild(ownerDoc.createTextNode(" "));
+  var animationObjects = [];
+  animationObjects.push({"element":insertedChildWrapper, "properties":{"width":columnWidthPixels}});
+  var i;
+  for(i = 1 + insertIndex;i <= childCount;i++) {
+    desiredColumnIndex = i % columns;
+    desiredRowIndex = Math.floor(i / columns);
+    var animationElement = children[i];
+    this._preventDiagonalMovement(animationElement, desiredColumnIndex, desiredRowIndex, columns, columnWidthPixels, rowHeightPixels, isRtl);
+    var animationObject = {"element":animationElement, "properties":{"offsetLeft":desiredColumnIndex * columnWidthPixels, "offsetTop":desiredRowIndex * rowHeightPixels}};
+    if(isRtl) {
+      animationElement.style.left = animationElement.offsetLeft + "px";
+      animationElement.style.right = "auto";
+      animationObject["properties"]["offsetLeft"] = (columns - 1 - desiredColumnIndex) * columnWidthPixels
+    }
+    animationObjects.push(animationObject)
+  }
+  var dashboardClientId = dashboardComponent.getClientId();
+  AdfDhtmlPanelDashboardPeer._adjustShim(animationObjects, dashboardClientId, columns, rowHeightPixels, 1 + childCount);
+  var root = this.getDomElement();
+  animationObjects.push({"element":root, "properties":{"scrollTop":scrollTop}});
+  var animDuration = parseInt(AdfPage.PAGE.getLookAndFeel().getSkinProperty("af|panelDashboard-tr-insert-delete-animation-duration"));
+  if(isNaN(animDuration)) {
+    animDuration = 0
+  }else {
+    animDuration = Math.round(animDuration * AdfDhtmlPanelDashboardPeer._PHASE_1_DURATION_FACTOR)
+  }
+  var descendantResizeComponent = null;
+  var dimensionsFromChildren = AdfDhtmlPanelDashboardPeer._isDimensionsFromChildren(dashboardClientId);
+  if(dimensionsFromChildren) {
+    descendantResizeComponent = this.getComponent()
+  }
+  this._animator = AdfDhtmlElementAnimator.animate(AdfDhtmlElementAnimator.FRAME_METHOD_SLOW_FAST_SLOW, animDuration, animationObjects, null, AdfDhtmlPanelDashboardPeer._resetChildrenPositioningStyles, [this, null], descendantResizeComponent)
+};
+AdfDhtmlPanelDashboardPeer.prototype.showDragFeedback = function(dndContext, desiredDropIndexString, userAction, lastDesiredDropIndexString, pageX, pageY, dragExit) {
+  AdfAssert.assertPrototype(dndContext, AdfDnDContext);
+  AdfAssert.assertStringOrNull(desiredDropIndexString);
+  AdfAssert.assertNumber(userAction);
+  AdfAssert.assertStringOrNull(lastDesiredDropIndexString);
+  var dragSourceComponent = dndContext.getDragSource().getComponent();
+  var dashboardComponent = this.getComponent();
+  var draggedChildIndex = this.getDraggedSourceChildIndex(dragSourceComponent, true);
+  var dropTargetStyleClass = "p_AFDropTarget";
+  var dropTargetSubId = AdfRichUIPeer.CreateSubId(dashboardComponent.getClientId(), "drpt");
+  var dropTargetElement = AdfAgent.AGENT.getElementById(dropTargetSubId);
+  if(dragExit && userAction == AdfDnDContext.ACTION_NONE) {
+    AdfDomUtils.removeCSSClassName(dropTargetElement, dropTargetStyleClass);
+    this._animateReorderPositionTo(dashboardComponent, draggedChildIndex, null);
+    desiredDropIndex = null
+  }else {
+    if(lastDesiredDropIndexString != desiredDropIndexString) {
+      var desiredDropIndex = null;
+      if(desiredDropIndexString != null) {
+        desiredDropIndex = parseInt(desiredDropIndexString);
+        var columns = dashboardComponent.getColumns();
+        var columnWidthPixels = this._getChildWidthInPixels(dashboardComponent);
+        var rowHeightPixels = this._getChildHeightInPixels(dashboardComponent);
+        var desiredColumnIndex = Math.max(0, desiredDropIndex % columns);
+        var desiredRowIndex = Math.max(0, Math.floor(desiredDropIndex / columns));
+        var dropIndexLeftPixels = desiredColumnIndex * columnWidthPixels;
+        var dropIndexTopPixels = desiredRowIndex * rowHeightPixels;
+        if(AdfPage.PAGE.getLocaleContext().isRightToLeft()) {
+          dropIndexLeftPixels = (columns - 1 - desiredColumnIndex) * columnWidthPixels
+        }
+        dropIndexLeftPixels += 4;
+        dropIndexTopPixels += 4;
+        var dropTargetElementStyle = dropTargetElement.style;
+        dropTargetElementStyle.width = columnWidthPixels + "px";
+        dropTargetElementStyle.height = rowHeightPixels + "px";
+        dropTargetElementStyle.left = dropIndexLeftPixels + "px";
+        dropTargetElementStyle.top = dropIndexTopPixels + "px";
+        AdfDomUtils.addCSSClassName(dropTargetElement, dropTargetStyleClass);
+        this._animateReorderPositionTo(dashboardComponent, draggedChildIndex, desiredDropIndex)
+      }else {
+        if(lastDesiredDropIndexString != null) {
+          AdfDomUtils.removeCSSClassName(dropTargetElement, dropTargetStyleClass);
+          if(draggedChildIndex != null) {
+            if(this._animator != null) {
+              this._animator.stop()
+            }
+            AdfDhtmlPanelDashboardPeer._resetChildrenPositioningStyles([this, null], draggedChildIndex, parseInt(lastDesiredDropIndexString))
+          }
+        }
+      }
+    }
+  }
+};
+AdfDhtmlPanelDashboardPeer.prototype.getRowKeyBounds = function(desiredDropIndexString) {
+  if(desiredDropIndexString == null) {
+    return null
+  }
+  var dataBody = this.__getDataBody();
+  var children = AdfDomUtils.getChildElements(dataBody);
+  var childCount = children.length;
+  var desiredDropIndex = parseInt(desiredDropIndexString);
+  if(desiredDropIndex < childCount) {
+    var dashboardComponent = this.getComponent();
+    var columns = dashboardComponent.getColumns();
+    var desiredColumnIndex = desiredDropIndex % columns;
+    var desiredRowIndex = Math.floor(desiredDropIndex / columns);
+    var columnWidthPixels = this._getChildWidthInPixels(dashboardComponent);
+    var rowHeightPixels = this._getChildHeightInPixels(dashboardComponent);
+    var offsetX = desiredColumnIndex * columnWidthPixels;
+    var offsetY = desiredRowIndex * rowHeightPixels;
+    var pageBounds = AdfAgent.AGENT.getElementPageBounds(dataBody);
+    pageBounds.left += offsetX - dataBody.scrollLeft;
+    pageBounds.right = pageBounds.left + columnWidthPixels;
+    pageBounds.top += offsetY - dataBody.scrollTop;
+    pageBounds.bottom = pageBounds.top + rowHeightPixels;
+    return pageBounds
+  }
+  return null
+};
+AdfDhtmlPanelDashboardPeer.prototype.getRowKeyAndOrientationFromHints = function(pageX, pageY, hints) {
+  AdfAssert.assertNumber(pageX);
+  AdfAssert.assertNumber(pageY);
+  AdfAssert.assert(hints != null);
+  var hintRowKey = hints[AdfStampedDropTarget.HINT_LAST_ROWKEY];
+  var hintRowKeyBounds = hints[AdfStampedDropTarget.HINT_LAST_ROWKEY_BOUNDS];
+  var hintDropOrientation = hints[AdfStampedDropTarget.HINT_LAST_DROP_ORIENTATION];
+  if(hintRowKey && hintRowKeyBounds) {
+    AdfAssert.assertString(hintRowKey);
+    AdfAssert.assertObject(hintRowKeyBounds);
+    if(pageX >= hintRowKeyBounds.left && pageY >= hintRowKeyBounds.top && pageX <= hintRowKeyBounds.right && pageY <= hintRowKeyBounds.bottom) {
+      hints[AdfStampedDropTarget.ROW_KEY] = hintRowKey;
+      hints[AdfStampedDropTarget.DROP_ORIENTATION] = hintDropOrientation;
+      return
+    }
+  }
+  var isExternalDragSource = true;
+  var dndContext = AdfPage.PAGE.getDnDContext();
+  if(dndContext != null) {
+    var dragSourceComponent = dndContext.getDragSource().getComponent();
+    var dashboardComponent = this.getComponent();
+    if(dragSourceComponent.getParent() == dashboardComponent) {
+      isExternalDragSource = false
+    }
+  }
+  this._getRowKeyAndOrientationForPosition(pageX, pageY, hints, isExternalDragSource)
+};
+AdfDhtmlPanelDashboardPeer.prototype.getDraggedSourceChildIndex = function(dragSourceComponent, ignoreCachedValue) {
+  var dataBody = this.__getDataBody();
+  var children = AdfDomUtils.getChildElements(dataBody);
+  var childCount = children.length;
+  var draggedSourceClientId = dragSourceComponent.getClientId();
+  if(!ignoreCachedValue && this._draggedSourceClientId == draggedSourceClientId) {
+    return this._draggedSourceIndex
+  }else {
+    this._draggedSourceClientId = draggedSourceClientId;
+    var draggedSourceIndex = null;
+    for(var i = 0;i < childCount;i++) {
+      var child = children[i];
+      var firstChild = AdfDomUtils.getFirstChildElement(child);
+      if(firstChild && draggedSourceClientId == AdfAgent.AGENT.getAttribute(firstChild, "id")) {
+        draggedSourceIndex = i;
+        break
+      }
+    }
+    this._draggedSourceIndex = draggedSourceIndex;
+    return draggedSourceIndex
+  }
+};
+AdfDhtmlPanelDashboardPeer._sortAscending = function(a, b) {
+  return a - b
+};
+AdfDhtmlPanelDashboardPeer._arrayContains = function(theArray, theValue) {
+  var i;
+  var arrayLength = theArray.length;
+  for(i = 0;i < arrayLength;i++) {
+    if(theArray[i] == theValue) {
+      return true
+    }
+  }
+  return false
+};
+AdfDhtmlPanelDashboardPeer.prototype._getDispayDropIndexFromCoordinates = function(dashboardComponent, dataBody, pageX, pageY, isExternalDragSource) {
+  var agent = AdfAgent.AGENT;
+  if(agent.pointInElementBounds(this.getDomElement(), pageX, pageY)) {
+    var dataBodyX = pageX - document.documentElement.scrollLeft - agent.getElementLeft(dataBody) + dataBody.scrollLeft;
+    var dataBodyY = pageY - agent.getElementTop(dataBody) + dataBody.scrollTop;
+    var columnWidthPixels = this._getChildWidthInPixels(dashboardComponent);
+    var rowHeightPixels = this._getChildHeightInPixels(dashboardComponent);
+    var columns = dashboardComponent.getColumns();
+    var desiredColumnIndex = Math.floor(dataBodyX / columnWidthPixels);
+    if(AdfPage.PAGE.getLocaleContext().isRightToLeft()) {
+      desiredColumnIndex = columns - 1 - desiredColumnIndex
+    }
+    var desiredRowIndex = Math.floor(dataBodyY / rowHeightPixels);
+    var desiredDropIndex = desiredRowIndex * columns + desiredColumnIndex;
+    var lastPossibleIndex = AdfDomUtils.getChildElements(dataBody).length;
+    if(!isExternalDragSource) {
+      lastPossibleIndex--
+    }
+    return"" + Math.min(lastPossibleIndex, desiredDropIndex)
+  }
+  return null
+};
+AdfDhtmlPanelDashboardPeer.prototype._getRowKeyAndOrientationForPosition = function(pageX, pageY, hints, isExternalDragSource) {
+  AdfAssert.assertNumber(pageX);
+  AdfAssert.assertNumber(pageY);
+  var dataBody = this.__getDataBody();
+  var desiredDropIndex = this._getDispayDropIndexFromCoordinates(this.getComponent(), dataBody, pageX, pageY, isExternalDragSource);
+  if(desiredDropIndex != null) {
+    hints[AdfStampedDropTarget.ROW_KEY] = desiredDropIndex;
+    hints[AdfStampedDropTarget.DROP_ORIENTATION] = AdfDropEvent.DROP_ORIENTATION_INSIDE
+  }else {
+    hints[AdfStampedDropTarget.ROW_KEY] = null;
+    hints[AdfStampedDropTarget.DROP_ORIENTATION] = AdfDropEvent.DROP_ORIENTATION_INSIDE
+  }
+};
+AdfDhtmlPanelDashboardPeer.prototype.__getDataBody = function() {
+  var root = this.getDomElement();
+  var dataBody = AdfDomUtils.getFirstChildElement(root);
+  AdfAssert.assertDomElement(dataBody);
+  return dataBody
+};
+AdfDhtmlPanelDashboardPeer.prototype._animateReorderPositionTo = function(dashboardComponent, draggedChildIndex, desiredDropIndex) {
+  if(this._animator != null) {
+    this._animator.stop()
+  }
+  var dataBody = this.__getDataBody();
+  var children = AdfDomUtils.getChildElements(dataBody);
+  var childCount = children.length;
+  if(childCount == 0) {
+    return
+  }
+  var animationObjects = [];
+  var columns = dashboardComponent.getColumns();
+  var columnWidthPixels = this._getChildWidthInPixels(dashboardComponent);
+  var rowHeightPixels = this._getChildHeightInPixels(dashboardComponent);
+  var backToOriginalState = desiredDropIndex == null;
+  for(var i = 0;i < childCount;i++) {
+    var child = children[i];
+    var properties = {};
+    if(i == draggedChildIndex) {
+      child.style.display = backToOriginalState ? "" : "none"
+    }
+    if(i != draggedChildIndex) {
+      var desiredChildIndex = i;
+      if(!backToOriginalState) {
+        if(draggedChildIndex != null && desiredChildIndex > draggedChildIndex) {
+          desiredChildIndex--
+        }
+        if(desiredChildIndex >= desiredDropIndex) {
+          desiredChildIndex++
+        }
+      }
+      var desiredColumnIndex = desiredChildIndex % columns;
+      var desiredRowIndex = Math.floor(desiredChildIndex / columns);
+      var isRtl = AdfPage.PAGE.getLocaleContext().isRightToLeft();
+      if(isRtl) {
+        child.style.left = child.offsetLeft + "px";
+        child.style.right = "auto";
+        properties["offsetLeft"] = (columns - 1 - desiredColumnIndex) * columnWidthPixels
+      }else {
+        properties["offsetLeft"] = desiredColumnIndex * columnWidthPixels
+      }
+      this._preventDiagonalMovement(child, desiredColumnIndex, desiredRowIndex, columns, columnWidthPixels, rowHeightPixels, isRtl);
+      properties["offsetTop"] = desiredRowIndex * rowHeightPixels
+    }
+    animationObjects[i] = {"element":child, "properties":properties}
+  }
+  var animationCompleteFunction;
+  var callbackParameters;
+  var dashboardClientId = dashboardComponent.getClientId();
+  if(desiredDropIndex == null) {
+    animationCompleteFunction = AdfDhtmlPanelDashboardPeer._resetChildrenPositioningStyles;
+    callbackParameters = [this, null]
+  }else {
+    if(draggedChildIndex == null) {
+      var desiredCellCount = childCount + 1;
+      AdfDhtmlPanelDashboardPeer._adjustShim(animationObjects, dashboardClientId, columns, rowHeightPixels, desiredCellCount)
+    }
+  }
+  var animDuration = parseInt(AdfPage.PAGE.getLookAndFeel().getSkinProperty("af|panelDashboard-tr-reorder-animation-duration"));
+  if(isNaN(animDuration)) {
+    animDuration = 0
+  }
+  var descendantResizeComponent = null;
+  var dimensionsFromChildren = AdfDhtmlPanelDashboardPeer._isDimensionsFromChildren(dashboardClientId);
+  if(dimensionsFromChildren) {
+    descendantResizeComponent = this.getComponent()
+  }
+  this._animator = AdfDhtmlElementAnimator.animate(AdfDhtmlElementAnimator.FRAME_METHOD_SLOW_FAST_SLOW, animDuration, animationObjects, null, animationCompleteFunction, callbackParameters, descendantResizeComponent)
+};
+AdfDhtmlPanelDashboardPeer.prototype._preventDiagonalMovement = function(element, desiredColumnIndex, desiredRowIndex, columns, columnWidthPixels, rowHeightPixels, isRtl) {
+  var elementStyle;
+  var existingTop = element.offsetTop;
+  var desiredTop = desiredRowIndex * rowHeightPixels;
+  if(existingTop != desiredTop) {
+    elementStyle = element.style;
+    elementStyle.top = desiredTop + "px";
+    if(desiredColumnIndex >= Math.floor(columns / 2)) {
+      if(isRtl) {
+        element.style.right = "auto";
+        elementStyle.left = -columnWidthPixels + "px"
+      }else {
+        elementStyle.left = columns * columnWidthPixels + "px"
+      }
+    }else {
+      if(isRtl) {
+        element.style.right = "auto";
+        elementStyle.left = columns * columnWidthPixels + "px"
+      }else {
+        elementStyle.left = -columnWidthPixels + "px"
+      }
+    }
+  }
+};
+AdfDhtmlPanelDashboardPeer.prototype._getChildWidthInPixels = function(dashboardComponent) {
+  var dataBody = this.__getDataBody();
+  var childCount = AdfDomUtils.getChildElements(dataBody).length;
+  if(this._cachedChildWidthInPixels && childCount == this._cachedChildCount) {
+    return this._cachedChildWidthInPixels
+  }
+  var columns = dashboardComponent.getColumns();
+  this._cachedChildWidthInPixels = Math.floor(dataBody.offsetWidth / columns);
+  this._cachedChildCount = childCount;
+  return this._cachedChildWidthInPixels
+};
+AdfDhtmlPanelDashboardPeer.prototype._getChildHeightInPixels = function(dashboardComponent) {
+  if(this._cachedChildHeightInPixels) {
+    return this._cachedChildHeightInPixels
+  }
+  var rowHeight = dashboardComponent.getRowHeight();
+  var rowHeightUnits = rowHeight.replace(/[0-9]/g, "");
+  var rowHeightPixels;
+  if(rowHeightUnits == "px") {
+    rowHeightPixels = parseInt(rowHeight.substring(0, rowHeight.length - rowHeightUnits.length))
+  }else {
+    var dataBody = this.__getDataBody();
+    var children = AdfDomUtils.getChildElements(dataBody);
+    if(children.length > 0) {
+      rowHeightPixels = children[0].offsetHeight
+    }else {
+      return 20
+    }
+  }
+  return this._cachedChildHeightInPixels = rowHeightPixels
+};
+AdfDhtmlPanelDashboardPeer.prototype._deleteElements = function(elementsToDelete, justDom) {
+  if(elementsToDelete != null) {
+    var dataBody = this.__getDataBody();
+    var i;
+    for(i = 0;i < elementsToDelete.length;i++) {
+      var elementToDelete = elementsToDelete[i];
+      if(!justDom) {
+        AdfPage.PAGE.removeComponentsInSubtree(elementToDelete);
+        AdfAgent.AGENT.elementsRemoved(elementToDelete)
+      }
+      dataBody.removeChild(elementToDelete)
+    }
+  }
+};
+AdfDhtmlPanelDashboardPeer._resetChildrenPositioningStyles = function(peerAndElementsToDelete, draggedChildIndex, desiredDropIndex) {
+  var peer = peerAndElementsToDelete[0];
+  var rootElement = peer.getDomElement();
+  if(!rootElement) {
+    return
+  }
+  peer._deleteElements(peerAndElementsToDelete[1], false);
+  var dataBody = peer.__getDataBody();
+  var children;
+  if(draggedChildIndex != null && draggedChildIndex != desiredDropIndex) {
+    children = AdfDomUtils.getChildElements(dataBody);
+    var childToMove = children[draggedChildIndex];
+    dataBody.removeChild(childToMove);
+    children = AdfDomUtils.getChildElements(dataBody);
+    if(desiredDropIndex < children.length) {
+      dataBody.insertBefore(childToMove, children[desiredDropIndex])
+    }else {
+      dataBody.appendChild(childToMove)
+    }
+    childToMove.style.display = ""
+  }
+  children = AdfDomUtils.getChildElements(dataBody);
+  var childCount = children.length;
+  var dashboardComponent = peer.getComponent();
+  var columns = dashboardComponent.getColumns();
+  var rowHeight = dashboardComponent.getRowHeight();
+  var rowHeightUnits = rowHeight.replace(/[0-9]/g, "");
+  var rowHeightNumberString = rowHeight.substring(0, rowHeight.length - rowHeightUnits.length);
+  var rowHeightNumber = parseFloat(rowHeightNumberString);
+  var columnWidth = AdfDhtmlPanelDashboardPeer._formatPercent(1 / columns);
+  for(i = 0;i < childCount;i++) {
+    var startStyle = AdfDhtmlPanelDashboardPeer._formatPercent(i % columns / columns);
+    var rowMultiplier = Math.floor(i / columns);
+    var topStyle = rowHeightNumber * rowMultiplier + rowHeightUnits;
+    var childStyle = children[i].style;
+    childStyle.top = topStyle;
+    if(AdfPage.PAGE.getLocaleContext().isRightToLeft()) {
+      childStyle.left = "auto";
+      childStyle.right = startStyle
+    }else {
+      childStyle.left = startStyle
+    }
+    childStyle.height = rowHeight;
+    childStyle.width = columnWidth
+  }
+  var dashboardClientId = dashboardComponent.getClientId();
+  AdfDhtmlPanelDashboardPeer._adjustShim(null, dashboardClientId, columns, rowHeightNumber, childCount);
+  this._processingOptimizedChanges = false;
+  AdfPage.PAGE.doResizeNotify(dashboardComponent)
+};
+AdfDhtmlPanelDashboardPeer._formatPercent = function(value) {
+  var result = "" + 100 * value;
+  var resultLength = result.length;
+  var dotIndex = result.indexOf(".");
+  if(dotIndex != -1 && dotIndex < resultLength - 2) {
+    result = result.substring(0, dotIndex + 3)
+  }
+  return result + "%"
+};
+AdfDhtmlPanelDashboardPeer.prototype._workaroundForInternetExplorer = function(newWidth) {
+  if(AdfAgent.AGENT.getPlatform() == AdfAgent.IE_PLATFORM) {
+    var root = this.getDomElement();
+    var rootScrollWidth = root.scrollWidth;
+    var dataBody;
+    if(newWidth == null) {
+      newWidth = root.offsetWidth
+    }
+    if(rootScrollWidth > newWidth) {
+      dataBody = this.__getDataBody();
+      if(!AdfDhtmlPanelDashboardPeer._scrollBarWidth) {
+        AdfDhtmlPanelDashboardPeer._scrollBarWidth = rootScrollWidth - newWidth + 2 + "px"
+      }
+      if(AdfPage.PAGE.getLocaleContext().isRightToLeft()) {
+      }else {
+        dataBody.style.right = AdfDhtmlPanelDashboardPeer._scrollBarWidth
+      }
+    }
+  }
+};
+
+function AdfPanelDashboardBehavior(panelDashboardId, type, alignId) {
+  this.Init(panelDashboardId, type, alignId)
+}
+AdfObject.createSubclass(AdfPanelDashboardBehavior, AdfClientBehavior);
+AdfPanelDashboardBehavior.prototype.Init = function(panelDashboardId, type, index, alignId) {
+  AdfPanelDashboardBehavior.superclass.Init.call(this);
+  AdfAssert.assertString(panelDashboardId);
+  this._panelDashboardId = panelDashboardId;
+  this._type = type;
+  this._index = index;
+  this._alignId = alignId
+};
+AdfPanelDashboardBehavior.prototype.initialize = function(behaviorComponent) {
+  AdfAssert.assertPrototype(behaviorComponent, AdfUIComponent);
+  if(behaviorComponent instanceof AdfUICommand) {
+    behaviorComponent.addEventListener(AdfActionEvent.ACTION_EVENT_TYPE, this._actionHandler, this)
+  }
+};
+AdfPanelDashboardBehavior.prototype._actionHandler = function(actionEvent) {
+  if(actionEvent.isPartial()) {
+    var behaviorComponent = actionEvent.getSource();
+    var panelDashboardComponent = behaviorComponent.findComponent(this._panelDashboardId);
+    AdfAssert.assert(panelDashboardComponent != null, 'AdfUIComponent.findComponent() found no results; the panelDashboard referenced by the panelDashboardBehavior for="' + this._panelDashboardId + '" could not be found (panelDashboard component = ' + panelDashboardComponent + ").");
+    if(panelDashboardComponent != null) {
+      var index = parseInt(this._index);
+      if(isNaN(index)) {
+        index = -1
+      }
+      var alignComponent = behaviorComponent;
+      if(this._alignId != null) {
+        alignComponent = behaviorComponent.findComponent(this._alignId);
+        AdfAssert.assertPrototype(alignComponent, AdfUIComponent, 'The align component referenced by the panelDashboardBehavior for="' + this._panelDashboardId + '" and alignId="' + this._alignId + '" could not be found (behaviorComponent clientId = ' + behaviorComponent.getClientId() + ").")
+      }
+      var panelDashboardPeer = panelDashboardComponent.getPeer();
+      AdfAssert.assert(panelDashboardPeer.insertChildBehavior != null, 'The panelDashboard referenced by the panelDashboardBehavior for="' + this._panelDashboardId + '" is not a panelDashboard (panelDashboard component = ' + panelDashboardComponent + ").");
+      panelDashboardPeer.insertChildBehavior(panelDashboardComponent, index, alignComponent)
+    }
+  }
+};
+
+AdfUIComponents.createComponentClass("AdfRichDecorativeBox", {componentType:"oracle.adf.RichDecorativeBox", propertyKeys:[{name:"topHeight", type:"String", "default":"50px"}, {name:"topLandmark", type:"String", "default":"none"}, {name:"centerLandmark", type:"String", "default":"none"}, {name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"theme", 
+type:"String"}, {name:"dimensionsFrom", type:"String", "default":"parent"}], superclass:AdfUIPanel});
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlDecorativeBoxPeer", false);
+AdfDhtmlDecorativeBoxPeer.prototype.needsChildVisibilityChanges = function(component) {
+  return true
+};
+AdfDhtmlDecorativeBoxPeer.prototype.needsResizeNotify = function(component) {
+  return true
+};
+AdfDhtmlDecorativeBoxPeer.prototype.BindToComponent = function(component, domElement) {
+  AdfDhtmlDecorativeBoxPeer.superclass.BindToComponent.call(this, component, domElement);
+  var clientId = component.getClientId();
+  var agent = AdfAgent.AGENT;
+  this._topLeftElement = agent.getElementById(AdfRichUIPeer.CreateSubId(clientId, "tl"));
+  this._topElement = agent.getElementById(AdfRichUIPeer.CreateSubId(clientId, "t"));
+  this._topInnerElement = agent.getElementById(AdfRichUIPeer.CreateSubId(clientId, "t-i"));
+  this._topRightElement = agent.getElementById(AdfRichUIPeer.CreateSubId(clientId, "tr"));
+  this._leftElement = agent.getElementById(AdfRichUIPeer.CreateSubId(clientId, "l"));
+  this._centerElement = agent.getElementById(AdfRichUIPeer.CreateSubId(clientId, "c"));
+  this._rightElement = agent.getElementById(AdfRichUIPeer.CreateSubId(clientId, "r"))
+};
+AdfDhtmlDecorativeBoxPeer.prototype.UnbindFromComponent = function() {
+  AdfDhtmlDecorativeBoxPeer.superclass.UnbindFromComponent.call(this);
+  this._topLeftElement = null;
+  this._topElement = null;
+  this._topInnerElement = null;
+  this._topRightElement = null;
+  this._leftElement = null;
+  this._centerElement = null;
+  this._rightElement = null
+};
+AdfDhtmlDecorativeBoxPeer.prototype.ResizeNotify = function(oldWidth, oldHeight, newWidth, newHeight) {
+};
+AdfDhtmlDecorativeBoxPeer.prototype.DomReplaceNotify = function(domNode) {
+  if(domNode.parentNode != this._topInnerElement) {
+    return domNode
+  }
+  var agent = AdfAgent.AGENT;
+  var needsResizeNotify = false;
+  var parentVisible = AdfDomUtils.isVisible(this._topInnerElement);
+  var childVisible = AdfDomUtils.isVisible(domNode);
+  if(childVisible != parentVisible) {
+    AdfDomUtils.setVisible(this._topInnerElement, childVisible);
+    this._repositionPanes();
+    needsResizeNotify = true
+  }
+  agent.prepareStretchedChild(domNode, "0px");
+  if(!needsResizeNotify) {
+    agent.resizeStretchedChild(domNode, "0px");
+    return domNode
+  }
+  return this.getDomElement()
+};
+AdfDhtmlDecorativeBoxPeer.prototype.ChildVisibilityChanged = function(childComponent, childDomElement, childVisible) {
+  if(childDomElement.parentNode != this._topInnerElement) {
+    return false
+  }
+  AdfDomUtils.setVisible(this._topInnerElement, childVisible);
+  this._repositionPanes();
+  AdfDomUtils.setVisible(childDomElement, childVisible);
+  AdfPage.PAGE.doResizeNotify(this.getComponent());
+  return true
+};
+AdfDhtmlDecorativeBoxPeer.prototype._repositionPanes = function() {
+  var th;
+  if(this._topInnerElement && AdfDomUtils.isVisible(this._topInnerElement)) {
+    th = this.getComponent().getTopHeight()
+  }else {
+    th = this._getAreaSkinProperty(this._topElement, "height")
+  }
+  if(this._topLeftElement) {
+    this._topLeftElement.style.height = th
+  }
+  if(this._topElement) {
+    this._topElement.style.height = th
+  }
+  if(this._topRightElement) {
+    this._topRightElement.style.height = th
+  }
+  if(this._leftElement) {
+    this._leftElement.style.top = th
+  }
+  if(this._centerElement) {
+    this._centerElement.style.top = th
+  }
+  if(this._rightElement) {
+    this._rightElement.style.top = th
+  }
+};
+AdfDhtmlDecorativeBoxPeer.prototype._getAreaSkinProperty = function(element, propName) {
+  var component = this.getComponent();
+  var theme = component.getTheme();
+  var laf = AdfPage.PAGE.getLookAndFeel();
+  var rtl = AdfPage.PAGE.getLocaleContext().isRightToLeft();
+  switch(element) {
+    case this._topLeftElement:
+      area = rtl ? "top-end" : "top-start";
+      break;
+    case this._topElement:
+    ;
+    case this._topInnerElement:
+      area = "top";
+      break;
+    case this._topRightElement:
+      area = rtl ? "top-start" : "top-end";
+      break;
+    default:
+      return null
+  }
+  var val = null;
+  if(theme != null) {
+    val = laf.getSkinProperty("af|decorativeBox::" + area + "[theme='" + theme + "']-tr-" + propName)
+  }
+  if(val == null) {
+    val = laf.getSkinProperty("af|decorativeBox::" + area + "-tr-" + propName)
+  }
+  return val
+};
+AdfDhtmlDecorativeBoxPeer.prototype.getContainerId = function(aligningElement) {
+  var borderStyle = AdfPage.PAGE.getLookAndFeel().getSkinProperty("BORDER_STYLE");
+  if(borderStyle == "simple") {
+    return AdfRichUIPeer.createSubId(this.getComponent().getClientId(), "c")
+  }else {
+    return this.getComponent().getClientId()
+  }
+};
+
+AdfUIComponents.createComponentClass("AdfRichPanelStretchLayout", {componentType:"oracle.adf.RichPanelStretchLayout", propertyKeys:[{name:"dimensionsFrom", type:"String", "default":"parent"}, {name:"topHeight", type:"String", "default":"50px"}, {name:"bottomHeight", type:"String", "default":"50px"}, {name:"startWidth", type:"String", "default":"50px"}, {name:"endWidth", type:"String", "default":"50px"}, {name:"viewportBottom", type:"Number", "default":-1}, {name:"topLandmark", type:"String", "default":"none"}, 
+{name:"startLandmark", type:"String", "default":"none"}, {name:"centerLandmark", type:"String", "default":"none"}, {name:"endLandmark", type:"String", "default":"none"}, {name:"bottomLandmark", type:"String", "default":"none"}, {name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"theme", type:"String"}], superclass:AdfUIPanel});
+
+AdfRichUIPeer.createPeerClass(AdfRichUIPeer, "AdfDhtmlPanelStretchLayoutPeer", false);
+AdfDhtmlPanelStretchLayoutPeer._handleWindowResizeFunctionName = "_handleWindowResize";
+AdfDhtmlPanelStretchLayoutPeer.prototype.needsResizeNotify = function(component) {
+  return true
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype.needsChildVisibilityChanges = function(component) {
+  return true
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype.ComponentRemoved = function(component) {
+  AdfPage.PAGE.__unregisterDescendantResizeNotifyComponent(component);
+  if(this._resizeTimeout) {
+    window.clearTimeout(this._resizeTimeout)
+  }
+  var rootElement = this.getDomElement();
+  if(rootElement) {
+    var viewportBottom = rootElement.getAttribute("data-vb");
+    if(viewportBottom != null) {
+      var agent = AdfAgent.AGENT;
+      var domDocument = agent.getDomDocument();
+      var domWindow = agent.getDomWindow();
+      var funcName = AdfDhtmlPanelStretchLayoutPeer._handleWindowResizeFunctionName;
+      this._setupEventHandler(agent, funcName, "resize", false, domWindow)
+    }
+  }
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype._setupEventHandler = function(agent, funcName, eventName, setup, listenElement) {
+  var stubName = funcName + "Stub";
+  var stubAlreadyAdded = false;
+  if(this[stubName] == null) {
+    this[stubName] = this.createCallback(this[funcName])
+  }else {
+    stubAlreadyAdded = true
+  }
+  if(setup) {
+    if(!stubAlreadyAdded) {
+      agent.addBubbleEventListener(listenElement, eventName, this[stubName]);
+      return true
+    }
+  }else {
+    agent.removeBubbleEventListener(listenElement, eventName, this[stubName]);
+    delete this[stubName];
+    return true
+  }
+  return false
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype.BindToComponent = function(component, domElement) {
+  AdfDhtmlPanelStretchLayoutPeer.superclass.BindToComponent.call(this, component, domElement);
+  var clientId = component.getClientId();
+  var centerId = AdfRichUIPeer.CreateSubId(clientId, "c");
+  var middleWrapperId = AdfRichUIPeer.CreateSubId(clientId, "m");
+  var topId = AdfRichUIPeer.CreateSubId(clientId, "t");
+  var bottomId = AdfRichUIPeer.CreateSubId(clientId, "b");
+  var leftId = AdfRichUIPeer.CreateSubId(clientId, "l");
+  var rightId = AdfRichUIPeer.CreateSubId(clientId, "r");
+  var agent = AdfAgent.AGENT;
+  this._centerPaneElement = agent.getElementById(centerId);
+  this._middleWrapperElement = agent.getElementById(middleWrapperId);
+  this._topPaneElement = agent.getElementById(topId);
+  this._bottomPaneElement = agent.getElementById(bottomId);
+  this._leftPaneElement = agent.getElementById(leftId);
+  this._rightPaneElement = agent.getElementById(rightId)
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype.UnbindFromComponent = function() {
+  AdfDhtmlPanelStretchLayoutPeer.superclass.UnbindFromComponent.call(this);
+  this._centerPaneElement = null;
+  this._middleWrapperElement = null;
+  this._topPaneElement = null;
+  this._bottomPaneElement = null;
+  this._leftPaneElement = null;
+  this._rightPaneElement = null
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype.ResizeNotify = function(oldWidth, oldHeight, newWidth, newHeight) {
+  if(oldWidth == newWidth && oldHeight == newHeight) {
+    oldWidth = undefined;
+    oldHeight = undefined
+  }
+  var rootElement = this.getDomElement();
+  var firstElement = AdfDomUtils.getFirstChildElement(rootElement);
+  if(firstElement == null) {
+    return
+  }
+  var dimensionsFromParent = firstElement.style && firstElement.style.position == "absolute";
+  var topPaneElement = this._topPaneElement;
+  var leftPaneElement = this._leftPaneElement;
+  var centerPaneElement = this._centerPaneElement;
+  var rightPaneElement = this._rightPaneElement;
+  var bottomPaneElement = this._bottomPaneElement;
+  var topHeight = this._getSize(topPaneElement, "height");
+  var leftWidth = this._getSize(leftPaneElement, "width");
+  var rightWidth = this._getSize(rightPaneElement, "width");
+  var bottomHeight = this._getSize(bottomPaneElement, "height");
+  var viewportBottom = rootElement.getAttribute("data-vb");
+  if(viewportBottom != null) {
+    var agent = AdfAgent.AGENT;
+    var domDocument = agent.getDomDocument();
+    var domWindow = agent.getDomWindow();
+    var funcName = AdfDhtmlPanelStretchLayoutPeer._handleWindowResizeFunctionName;
+    if(this._setupEventHandler(agent, funcName, "resize", true, domWindow)) {
+      this[funcName]()
+    }
+  }
+  var repositioningRequired = false;
+  if(topPaneElement && AdfDomUtils.isVisible(topPaneElement)) {
+    if(!topHeight) {
+      topHeight = topPaneElement.offsetHeight;
+      repositioningRequired = true
+    }
+  }
+  if(leftPaneElement && AdfDomUtils.isVisible(leftPaneElement)) {
+    if(!leftWidth) {
+      leftWidth = leftPaneElement.offsetWidth;
+      repositioningRequired = true
+    }
+  }
+  if(centerPaneElement && AdfDomUtils.isVisible(centerPaneElement)) {
+    if(!dimensionsFromParent && this._isJsFlowLayout()) {
+      repositioningRequired = true
+    }
+  }
+  if(rightPaneElement && AdfDomUtils.isVisible(rightPaneElement)) {
+    if(!rightWidth) {
+      rightWidth = rightPaneElement.offsetWidth;
+      repositioningRequired = true
+    }
+  }
+  if(bottomPaneElement && AdfDomUtils.isVisible(bottomPaneElement)) {
+    if(!bottomHeight) {
+      bottomHeight = bottomPaneElement.offsetHeight;
+      repositioningRequired = true
+    }
+  }
+  if(repositioningRequired) {
+    this._repositionPanes();
+    AdfPage.PAGE.__registerDescendantResizeNotifyComponent(this.getComponent())
+  }
+  leftWidth = this._getSize(leftPaneElement, "width");
+  rightWidth = this._getSize(rightPaneElement, "width");
+  var innerHeight = newHeight - (topHeight + bottomHeight);
+  var innerWidth = newWidth - (leftWidth + rightWidth);
+  if(newWidth != oldWidth) {
+    this._stretchPane(topPaneElement, newWidth, undefined);
+    this._stretchPane(bottomPaneElement, newWidth, undefined)
+  }
+  if(dimensionsFromParent) {
+    if(newHeight != oldHeight) {
+      this._stretchPane(leftPaneElement, undefined, innerHeight);
+      this._stretchPane(rightPaneElement, undefined, innerHeight)
+    }
+    this._stretchPane(centerPaneElement, innerWidth, innerHeight)
+  }
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype[AdfDhtmlPanelStretchLayoutPeer._handleWindowResizeFunctionName] = function(event) {
+  if(this._resizeTimeout) {
+    window.clearTimeout(this._resizeTimeout)
+  }
+  var peer = this;
+  this._resizeTimeout = window.setTimeout(function() {
+    peer._applyViewportBottom();
+    peer._resizeTimeout = null
+  }, 250)
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype._applyViewportBottom = function() {
+  var rootElement = this.getDomElement();
+  var viewportBottom = rootElement.getAttribute("data-vb");
+  if(viewportBottom != null) {
+    var vb = parseInt(viewportBottom, 10);
+    if(vb >= 0) {
+      var viewportHeight = document.documentElement.clientHeight;
+      var computedStyle = AdfAgent.getAgent().getComputedStyle(rootElement);
+      if(computedStyle.position != "absolute") {
+        var top = AdfAgent.AGENT.getElementTop(rootElement);
+        if(top < viewportHeight) {
+          var newHeight = viewportHeight - vb - top;
+          rootElement.style.height = newHeight + "px";
+          AdfPage.PAGE.doResizeNotify(this.getComponent())
+        }
+      }
+    }
+  }
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype.DomReplaceNotify = function(domNode) {
+  if(this._isChild(domNode)) {
+    var needsResizeNotify = false;
+    var parentPane = domNode.parentNode;
+    var parentVisible = AdfDomUtils.isVisible(parentPane);
+    var childVisible = AdfDomUtils.isVisible(domNode);
+    if(childVisible != parentVisible) {
+      AdfDomUtils.setVisible(parentPane, childVisible);
+      this._repositionPanes();
+      needsResizeNotify = true
+    }
+    var canAbsolutePosition = true;
+    var paneAutoSized = false;
+    var rootElement = this.getDomElement();
+    var firstElement = AdfDomUtils.getFirstChildElement(rootElement);
+    if(firstElement == null) {
+      return rootElement
+    }
+    var dimensionsFromParent = firstElement.style && firstElement.style.position == "absolute";
+    var parentPaneId = parentPane.id;
+    if(parentPaneId.indexOf("::t") != -1 || parentPaneId.indexOf("::b") != -1) {
+      var height = this._getSize(parentPane, "height");
+      if(!height) {
+        paneAutoSized = true;
+        needsResizeNotify = true
+      }
+    }else {
+      if(parentPaneId.indexOf("::r") != -1 || parentPaneId.indexOf("::l") != -1) {
+        if(dimensionsFromParent) {
+          var width = this._getSize(parentPane, "width");
+          if(!width) {
+            paneAutoSized = true;
+            needsResizeNotify = true
+          }
+        }else {
+          canAbsolutePosition = false
+        }
+      }else {
+        if(parentPaneId.indexOf("::c") != -1) {
+          if(!dimensionsFromParent) {
+            canAbsolutePosition = false
+          }
+        }
+      }
+    }
+    if(canAbsolutePosition && !paneAutoSized) {
+      var panePadding = "0px";
+      var agent = AdfAgent.AGENT;
+      agent.prepareStretchedChild(domNode, panePadding)
+    }
+    if(canAbsolutePosition && !needsResizeNotify) {
+      agent.resizeStretchedChild(domNode, panePadding);
+      return domNode
+    }
+    return rootElement
+  }
+  return domNode
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype.ChildVisibilityChanged = function(childComponent, childDomElement, childVisible) {
+  if(this._isChild(childDomElement)) {
+    var paneElement = childDomElement.parentNode;
+    AdfDomUtils.setVisible(paneElement, childVisible);
+    this._repositionPanes();
+    AdfDomUtils.setVisible(childDomElement, childVisible);
+    AdfPage.PAGE.doResizeNotify(this.getComponent());
+    return true
+  }
+  return false
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype._isJsFlowLayout = function() {
+  var middleWrapperElement = this._middleWrapperElement;
+  return middleWrapperElement != null && AdfAgent.AGENT.getAttribute(middleWrapperElement, "_afrFlowJs") == "true"
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype._getSize = function(paneElement, propName) {
+  return paneElement && AdfDomUtils.isVisible(paneElement) ? AdfAgent.getCSSLengthAsInt(paneElement.style[propName]) : 0
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype._getSizeLength = function(paneElement, propName) {
+  if(paneElement && AdfDomUtils.isVisible(paneElement)) {
+    var styleLength = paneElement.style[propName];
+    if(styleLength) {
+      return styleLength
+    }
+    var offsetProperty = "offset" + propName.charAt(0).toUpperCase() + propName.substring(1);
+    return paneElement[offsetProperty] + "px"
+  }
+  return"0px"
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype._isChild = function(domNode) {
+  return domNode.parentNode.parentNode == this.getDomElement()
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype._repositionPanes = function() {
+  var agent = AdfAgent.AGENT;
+  var topPaneElement = this._topPaneElement;
+  var leftPaneElement = this._leftPaneElement;
+  var bottomPaneElement = this._bottomPaneElement;
+  var rightPaneElement = this._rightPaneElement;
+  var centerPaneElement = this._centerPaneElement;
+  var topHeight = this._getSizeLength(topPaneElement, "height");
+  var bottomHeight = this._getSizeLength(bottomPaneElement, "height");
+  var leftWidth = this._getSizeLength(leftPaneElement, "width");
+  var rightWidth = this._getSizeLength(rightPaneElement, "width");
+  var rootElement = this.getDomElement();
+  var firstElement = AdfDomUtils.getFirstChildElement(rootElement);
+  if(firstElement == null) {
+    return
+  }
+  var dimensionsFromParent = firstElement.style && firstElement.style.position == "absolute";
+  if(dimensionsFromParent) {
+    agent.repositionStretchedElement(leftPaneElement, topHeight, bottomHeight);
+    agent.repositionStretchedElement(rightPaneElement, topHeight, bottomHeight);
+    agent.repositionStretchedElement(centerPaneElement, topHeight, bottomHeight, leftWidth, rightWidth)
+  }else {
+    if(this._isJsFlowLayout()) {
+      var maxHeight = 0;
+      if(centerPaneElement != null) {
+        centerPaneElement.style.left = leftWidth;
+        centerPaneElement.style.right = rightWidth;
+        maxHeight = Math.max(maxHeight, centerPaneElement.offsetHeight)
+      }
+      if(leftPaneElement != null) {
+        maxHeight = Math.max(maxHeight, leftPaneElement.offsetHeight)
+      }
+      if(rightPaneElement != null) {
+        maxHeight = Math.max(maxHeight, rightPaneElement.offsetHeight)
+      }
+      this._middleWrapperElement.style.height = maxHeight + "px"
+    }
+  }
+};
+AdfDhtmlPanelStretchLayoutPeer.prototype._stretchPane = function(paneElement, width, height) {
+  if(paneElement) {
+    var agent = AdfAgent.AGENT;
+    agent.resizeStretchedElement(paneElement, width, height);
+    var childElement = AdfDomUtils.getFirstChildElement(paneElement);
+    agent.resizeStretchedChild(childElement, "0px")
+  }
+};

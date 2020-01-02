@@ -1,0 +1,195 @@
+AdfUIComponents.createComponentClass("AdfUIRegion", {componentType:"oracle.adf.Region", propertyKeys:["disclosureListener", {name:"disclosed", type:"Boolean", "default":true}, {name:"immediate", type:"Boolean", "default":false}, "value", "regionNavigationListener"], eventNames:["regionRemoteRefresh", "disclosure"], namingContainer:true});
+
+AdfUIComponents.createComponentClass("AdfRichRegion", {componentType:"oracle.adf.RichRegion", propertyKeys:[{name:"inlineStyle", type:"String"}, {name:"styleClass", type:"String"}, {name:"shortDesc", type:"String"}, {name:"unsecure", type:"Object", secured:true}, {name:"visible", type:"Boolean", "default":true}, {name:"persist", type:"Array"}, {name:"dontPersist", type:"Array"}, {name:"showDisclosure", type:"Boolean", "default":true}, {name:"showMaximize", type:"String", "default":"auto"}, "maximizeListener", 
+{name:"maximized", type:"Boolean", "default":false}, {name:"contentDelivery", type:"String", "default":"lazyUncached"}, {name:"helpTopicId", type:"String"}, {name:"text", type:"String"}, {name:"showHeader", type:"String", "default":"never"}], superclass:AdfUIRegion});
+
+AdfRichRegion.prototype.isEventRoot = function() {
+  return true
+};
+AdfRichRegion.prototype.HandleBubbledEvent = function(event) {
+  if(!event.isPartial() && !event.isCanceled()) {
+    if(event.getType() == AdfActionEvent.ACTION_EVENT_TYPE) {
+      if(event.isResponseExpected()) {
+        AdfPage.PAGE.addPartialTargets(this);
+        event.setPartial(true)
+      }
+    }else {
+      event.setPartial(true)
+    }
+  }
+  AdfRichRegion.superclass.HandleBubbledEvent.call(this, event)
+};
+
+AdfRichUIPeer.createPeerClass(AdfDhtmlPanelBoxPeer, "AdfDhtmlRegionPeer", false);
+AdfDhtmlRegionPeer._INNER_SD_PEER = AdfRichUIPeer.createInnerPeerClassWithSubId(AdfDhtmlShowDisclosurePeer, "InnerRegionShowDetailPeer", AdfDhtmlPanelBoxPeer.DISCLOSURE_SUB_ID);
+InnerRegionShowDetailPeer.InitSubclass = function() {
+  AdfDhtmlTogglePeer.Config(this, {toggledStyleClass:"af|region::disclosed-icon-style", untoggledStyleClass:"af|region::undisclosed-icon-style"})
+};
+InnerRegionShowDetailPeer.prototype.HandleClientSideToggle = function(disclosed) {
+  if(this.outerThis.GetContentDomElement()) {
+    if(InnerRegionShowDetailPeer.superclass.HandleClientSideToggle.call(this, disclosed)) {
+      this.outerThis.__handleClientSideDisclosure(disclosed);
+      return true
+    }
+  }
+  return false
+};
+AdfDhtmlPanelBoxPeer.MAXIMIZE_SUB_ID = "_afrMax";
+AdfDhtmlRegionPeer._INNER_MAXIMIZE_PEER = AdfRichUIPeer.createInnerPeerClassWithSubId(AdfDhtmlMaximizePeer, "InnerRegionMaximizePeer", AdfDhtmlPanelBoxPeer.MAXIMIZE_SUB_ID);
+InnerRegionMaximizePeer.InitSubclass = function() {
+  AdfDhtmlTogglePeer.Config(this, {toggledStyleClass:"af|region::maximized-icon-style", untoggledStyleClass:"af|region::unmaximized-icon-style"})
+};
+InnerRegionMaximizePeer.prototype.HandleClientSideToggle = function(maximized) {
+  var outerThis = this.outerThis;
+  var contentDom = outerThis.GetContentDomElement();
+  if(contentDom) {
+    if(InnerRegionMaximizePeer.superclass.HandleClientSideToggle.call(this, maximized)) {
+      outerThis.__handleClientSideMaximize(outerThis.getDomElement(), contentDom, maximized);
+      return true
+    }
+  }
+  return false
+};
+InnerRegionMaximizePeer.prototype.ComponentMaximizedChanged = function(component, domElement, newValue, oldValue) {
+  var handled = InnerRegionMaximizePeer.superclass.ComponentMaximizedChanged.call(this, component, domElement, newValue, oldValue);
+  if(newValue) {
+    component.setDisclosed(true)
+  }
+  return handled
+};
+InnerRegionMaximizePeer.prototype.EventPropagatesToServer = function(isMaximized) {
+  return!this.outerThis.GetContentDomElement()
+};
+AdfDhtmlRegionPeer.prototype.CreateDisclosurePeer = function(component) {
+  return new AdfDhtmlRegionPeer._INNER_SD_PEER(component, this)
+};
+AdfDhtmlRegionPeer.prototype.CreateMaximizePeer = function(component) {
+  return new AdfDhtmlRegionPeer._INNER_MAXIMIZE_PEER(component, this)
+};
+AdfDhtmlRegionPeer.prototype.InitDomElement = function(component, domElement) {
+  AdfDhtmlRegionPeer.superclass.InitDomElement.call(this, component, domElement);
+  if(domElement.tagName == "DIV") {
+    var contentElement = this.GetContentDomElement(domElement);
+    var onlyChild = AdfDhtmlRegionPeer._getOnlyChildElement(contentElement);
+    this._stretchOnlyChild(domElement, onlyChild)
+  }
+};
+AdfDhtmlRegionPeer.prototype.DomReplaceNotify = function(replacedDomNode) {
+  var regionElement = this.getDomElement();
+  if(regionElement.tagName == "DIV") {
+    var contentElement = this.GetContentDomElement();
+    var onlyChild = AdfDhtmlRegionPeer._getOnlyChildElement(contentElement);
+    if(onlyChild == replacedDomNode) {
+      this._stretchOnlyChild(regionElement, replacedDomNode)
+    }
+  }
+  return replacedDomNode
+};
+AdfDhtmlRegionPeer.prototype.GetContentDomElement = function(rootElement) {
+  var contentDom = AdfDhtmlRegionPeer.superclass.GetContentDomElement.call(this, rootElement);
+  if(!contentDom) {
+    if(!rootElement) {
+      rootElement = this.getDomElement()
+    }
+    contentDom = rootElement
+  }
+  return contentDom
+};
+AdfDhtmlRegionPeer.prototype.TruncateClientId = function(component, descendantComponent, childClientId, skipArray) {
+  var ids = childClientId.split(":");
+  var regionIdClientId = component.getClientId();
+  var iteratorIndex = AdfStrings.count(regionIdClientId, ":") + 1;
+  var iteratorId = ids[iteratorIndex];
+  if(iteratorId) {
+    if(!isNaN(iteratorId)) {
+      skipArray.push(iteratorIndex)
+    }
+  }
+};
+AdfDhtmlRegionPeer._getOnlyChildElement = function(parentElement) {
+  var childElement = null;
+  var childNodes = parentElement.childNodes;
+  if(childNodes) {
+    var length = childNodes.length;
+    for(var i = 0;i < length;i++) {
+      var childNode = childNodes[i];
+      var nodeType = childNode.nodeType;
+      if(nodeType == 8) {
+        continue
+      }
+      if(nodeType == 3) {
+        var stripped = childNode.data.replace(/\s*/, "");
+        if(stripped.length > 0) {
+          return null
+        }
+      }else {
+        if(nodeType == 1) {
+          if(childNode.style == null || childNode.style.display != "none") {
+            if((childNode.id == null || childNode.id == "") && (childNode.className == null || childNode.className == "")) {
+              var nonWhitespaceChildCount = AdfDomUtils.getNonWhitespaceChildCount(childNode);
+              if(nonWhitespaceChildCount == 0) {
+                continue
+              }
+              var wrapperChild = AdfDomUtils.getOnlyChildElement(childNode);
+              if(wrapperChild == null) {
+                return null
+              }else {
+                if(childElement) {
+                  return null
+                }
+                childElement = wrapperChild;
+                continue
+              }
+            }
+            if(childElement) {
+              return null
+            }
+            childElement = childNode
+          }
+        }else {
+          return null
+        }
+      }
+    }
+  }
+  return childElement
+};
+AdfDhtmlRegionPeer.prototype._isRegionStretched = function(regionElement) {
+  var stretched = false;
+  var regionStyle = regionElement.style;
+  if(regionStyle != null) {
+    var position = regionStyle.position;
+    if("absolute" == position) {
+      var width = regionStyle.width;
+      var height = regionStyle.height;
+      if(width == height) {
+        if("100%" == width) {
+          stretched = true
+        }else {
+          if("auto" == width) {
+            var top = regionStyle.top;
+            var bottom = regionStyle.bottom;
+            var left = regionStyle.left;
+            var right = regionStyle.right;
+            if(top != "auto" && bottom != "auto" && left != "auto" && right != "auto") {
+              stretched = true
+            }
+          }
+        }
+      }
+    }
+  }
+  return stretched
+};
+AdfDhtmlRegionPeer.prototype._stretchOnlyChild = function(regionElement, onlyChild) {
+  if(onlyChild != null) {
+    if(this._isRegionStretched(regionElement)) {
+      AdfAgent.getAgent().prepareStretchedChild(onlyChild, "0")
+    }
+  }
+};
+AdfDhtmlRegionPeer.prototype.ConvertClientIdToLocator = function(component, childComponent, descComponentClientId, replaceArray) {
+  var clientId = component.getClientId();
+  var clientIdDepth = AdfStrings.count(clientId, ":");
+  replaceArray.push([clientIdDepth + 1, null])
+};
