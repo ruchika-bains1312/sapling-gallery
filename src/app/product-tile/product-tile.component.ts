@@ -6,9 +6,9 @@ import { Component, OnInit, Input, EventEmitter, Output } from '@angular/core';
   styleUrls: ['./product-tile.component.css']
 })
 export class ProductTileComponent implements OnInit {
-  private _product:object={} ;
+  public _product={title: 'title', price: '0', url: ''} ;
     @Input('product')
-    set product(value: object) {
+    set product(value: any) {
     this._product = value;
 }
 get product(){

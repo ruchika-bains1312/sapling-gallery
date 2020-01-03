@@ -6,13 +6,13 @@ import { HttpClient } from '@angular/common/http';
   styleUrls: ['./try-on-garden.component.css']
 })
 export class TryOnGardenComponent implements OnInit {
-  private products_list = [
+  public products_list = [
     { title: 'Tulsi', price: '400', url: '../assets/img/tulsi.png' },
     { title: 'Rose', price: '200', url: '../assets/img/rose.png' },
     { title: 'Aloevera', price: '500', url: '../assets/img/aloevera.png' }
 
   ];
-  private selectedProductSrc: string="";
+  public selectedProductSrc: string="";
   constructor(private http: HttpClient) { }
 
   ngOnInit() {
