@@ -6,10 +6,10 @@ import { HomeComponent } from './home/home.component';
 
 
 const routes: Routes = [
-  {path:'', component:HomeComponent,pathMatch: 'full'},
+  {path:'home', component:HomeComponent,pathMatch: 'full'},
   {path:'view-port',component:CanvasViewportComponent},
   {path:'garden-proto',component:TryOnGardenComponent},
-  {path:'**', redirectTo:''}
+  {path:'**', redirectTo:'home'}
 ];
 
 @NgModule({
