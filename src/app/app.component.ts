@@ -11,7 +11,6 @@ export class AppComponent {
 
   title = 'plantsapling';
   tryOnGardenNav(){
-    alert('hi');
     this.router.navigate(['garden-proto/'])
     .then(() => {
       window.location.reload();
